@@ -23,7 +23,8 @@ class ModelAbonents(QAbstractItemModel):
 
     @pyqtSlot()
     def resetData(self):
-        self.setQuery(self.query)
+        if self.query:
+            self.setQuery(self.query)
 
     def setQuery(self, strSQL):
         """ Метод принимает запрос к базе данных. Поле `content` заполняется результатами выполнения запроса.
@@ -42,6 +43,7 @@ class ModelAbonents(QAbstractItemModel):
         self.namesColumn.clear()
         for i in range(len(cursor.description)):
             self.namesColumn.append(cursor.description[i][0])
+        self.fillSavedFields(self.getNameMainTable())
         # Заполнения поля content экземпляра класса.
         self.content.clear()
         row=cursor.fetchone()
@@ -82,29 +84,34 @@ class ModelAbonents(QAbstractItemModel):
 
     def fillSavedFields(self, name_main_table):
         """Метод заполняет список, содержащий пары номер поля в `contents`:название поля"""
+        self.savedFields = {}
         if not self.query:
-            return []
+            return 
         str_fields = re.search("(?<=select).+(?=from)", self.query, flags=re.I).group().lstrip().rstrip()
         #list_fields = str_fields.split(',')
         #print(f"list_fields = {list_fields}")
         ind=0
-        results=[]
         #print("list_fields=",list_fields)
         for s in re.findall("\w+\.\w+", str_fields):
             #print("field",ind,"=",s)
-            if s.split('.')[0]==name_main_table[1]:
-                results.append((ind, s.split('.')[1]))
+            pair_field = s.split('.')
+            if pair_field[0]==name_main_table[1]:
+                self.savedFields[ind] = pair_field[1]
+                #results.append((ind, pair_field[1]))
             ind+=1
-        print(results)
-        return results
+        print(f"Сохраняемые поля:{self.savedFields}, ключи:{self.savedFields.keys()}")
+        return 
 
     # Функции наследуемые из базового класса
     def flags(self, index):
         theFlags = super().flags(index)
-        if index.column() in range(1, len(self.namesColumn)+1):
-            theFlags = Qt.ItemIsEnabled|Qt.ItemIsEditable|Qt.ItemIsSelectable
-        else:
+        if index.column() == 0:
             theFlags = Qt.ItemIsEnabled
+        else:
+            if index.column() in self.savedFields.keys():
+                theFlags = Qt.ItemIsEnabled|Qt.ItemIsEditable|Qt.ItemIsSelectable
+            else:
+                theFlags = Qt.ItemIsEnabled
         #print("model.flags() is work. theFlags={}".format(theFlags))
         return theFlags
         
@@ -178,9 +185,9 @@ class ModelAbonents(QAbstractItemModel):
             for record in self.modifiedIndexes:
                 list_for_str = []
                 name_main_table = self.getNameMainTable()
-                for i in (self.fillSavedFields(name_main_table)[1:]):
+                for i in self.savedFields:#(self.fillSavedFields(name_main_table)[1:]):
                     print(f"from saveData - {i}")
-                    value = self.content[record][i[0]]
+                    value = self.content[record][i]#[0]]
                     if value == 'None':
                         # Если подчиенная запись не выбрана, то соответствующее поле заполняем значением NULL
                         value = 'NULL'
@@ -190,7 +197,8 @@ class ModelAbonents(QAbstractItemModel):
                         value = value[0]
                     else:
                         value = "'{}'".format(value)
-                    list_for_str.append("{} = {}".format(i[1], value))
+                    list_for_str.append("{} = {}".format(self.savedFields[i], value))
+                    #list_for_str.append("{} = {}".format(i[1], value))
                 if self.content[record][0]:
                     SQL=updateSQL.format(name_main_table[0], ", ".join(list_for_str), "{}={}".format(self.getFieldPrimaryKey(), self.content[record][0]))
                 else:
