@@ -93,6 +93,7 @@ class MainWindow(QMainWindow):
         super().setWindowTitle("Справочник по телефонным аппаратам")
 
     def setTableSizing(self, nameTable):
+        """Функция устанавливает размеры окон приложения и ширину столбцов таблиц"""
         settings = QSettings("abonent.ini", QSettings.IniFormat)
         nameSection = "tab_{}".format(nameTable)
         settings.beginGroup(nameSection)
