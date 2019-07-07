@@ -88,7 +88,7 @@ class comboBdDelegate(QAbstractItemDelegate):
         #import ipdb; ipdb.set_trace()
         painter.save()
         #print("Ячейка {0}.{1}-Тип:{2},Данные:{3}".format(index.row(), index.column(), type(index.data()), index.data()))
-        if index.data():
+        if index.data() and (not index.data() == 'None'):
             pass
             #model = index.model()
             try:
@@ -105,7 +105,7 @@ class comboBdDelegate(QAbstractItemDelegate):
 
     def setEditorData(self, editor, index):
         #print("setEditorData for relationDelegate")
-        if index.model().data(index, Qt.DisplayRole):
+        if index.model().data(index, Qt.DisplayRole) and (not index.model().data(index, Qt.DisplayRole) == 'None'):
             editor.setCurrentIndex(list(self.content.keys()).index(int(index.model().data(index, Qt.DisplayRole))))
         #editor.setCurrentIndex(list(self.content.keys()).index(index.model().data(index, Qt.DisplayRole)))
 
@@ -152,13 +152,13 @@ class tableDelegate(QAbstractItemDelegate):
         return formEditor
         
     def setModelData(self, editor, model, index):
-        """Сохраняться должен список из 3-х значений. Первое значение обозначает идентификатор 
-        записи в подчиненной таблице. Второе значение - отображаемое в таблице значение. """
+        """Если строка в таблице не выбрана, то в модель возвращается -1,
+        если строка выбрана, то возвращается строка содержащая номер строки"""
         #print("run setModelData(); currentIndex = {}".format(editor.mainTable.currentRow()))
         #print("from setModelData. Index = {}".format(editor.mainTable.currentRow()))
         indexOfEditor = editor.tableQuery.currentRow()
         if indexOfEditor == -1:
-            self.result = ()
+            self.result = 'None'
         else:
             self.result = editor.tableQuery.item(indexOfEditor,0).text()
             #self.result = editor.mainTable.item(indexOfEditor,0).text(),editor.mainTable.item(indexOfEditor,1).text(),editor.mainTable.item(indexOfEditor,2).text()
@@ -206,7 +206,7 @@ class functionViewTableEditDelegate(tableDelegate):
 
     def paint(self, painter, option, index):
         painter.save()
-        if index.data():
+        if (index.data()) and (not (index.data() == 'None')):
             SqlSelect = self._SqlSelectSlaveRecord.format(index.data())
             connect = getConnection()
             cursor = connect.cursor()

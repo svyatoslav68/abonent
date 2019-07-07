@@ -1,5 +1,5 @@
 # -*- coding: utf8 -*-
-#Модуль диалогового окна выбора телефонного номера
+#Модуль диалогового окна вывода содержимого подчиненной таблицы
 from PyQt5.QtWidgets import QDialog, QPushButton, QHBoxLayout, QVBoxLayout, QWidget, QLabel, QLineEdit, QComboBox
 from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QAbstractItemView 
 from mysqlconnector import getAdminConnection, getConnection

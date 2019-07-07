@@ -4,6 +4,7 @@
 from PyQt5.QtCore import pyqtSlot
 from PyQt5.QtCore import QAbstractItemModel, Qt, QVariant, QModelIndex
 from mysqlconnector import getAdminConnection, getConnection
+from pymysql import IntegrityError
 from PyQt5.QtWidgets import QComboBox, QMessageBox
 from datetime import date
 import re
@@ -84,15 +85,17 @@ class ModelAbonents(QAbstractItemModel):
         if not self.query:
             return []
         str_fields = re.search("(?<=select).+(?=from)", self.query, flags=re.I).group().lstrip().rstrip()
-        list_fields = str_fields.split(',')
+        #list_fields = str_fields.split(',')
+        #print(f"list_fields = {list_fields}")
         ind=0
         results=[]
         #print("list_fields=",list_fields)
-        for s in (i.split('as')[0].lstrip().rstrip() for i in list_fields):
-            print("field",ind,"=",s)
+        for s in re.findall("\w+\.\w+", str_fields):
+            #print("field",ind,"=",s)
             if s.split('.')[0]==name_main_table[1]:
                 results.append((ind, s.split('.')[1]))
             ind+=1
+        print(results)
         return results
 
     # Функции наследуемые из базового класса
@@ -153,20 +156,32 @@ class ModelAbonents(QAbstractItemModel):
             else:
                 return False
 
+    def insertRows(self, row, count, index):
+        """Переопределенный метод, служит для изменения размера модели при вставке строк """
+        super().beginInsertRows(QModelIndex(), row, row+count-1)
+        for i in range(count):
+            new_row=['',]
+            for j in range(len(self.namesColumn) - 1):
+                new_row.append('None')
+            self.content.insert(row, new_row)
+        super().endInsertRows()
+
     @pyqtSlot()
     def saveData(self):
         """Метод сохраняет содержимое модели в таблицу базы данных.
         для этого используется SQL-оператор, определяемый в переменной updateSQL """
         #print("modifiedIndexes={}".format(self.modifiedIndexes))
         updateSQL = "UPDATE {} SET {} WHERE {}"
+        insertSQL = "INSERT {} SET {}"
         connect=getConnection()
         try:
             for record in self.modifiedIndexes:
                 list_for_str = []
                 name_main_table = self.getNameMainTable()
                 for i in (self.fillSavedFields(name_main_table)[1:]):
+                    print(f"from saveData - {i}")
                     value = self.content[record][i[0]]
-                    if not value:
+                    if value == 'None':
                         # Если подчиенная запись не выбрана, то соответствующее поле заполняем значением NULL
                         value = 'NULL'
                     elif isinstance(value, tuple):
@@ -176,10 +191,25 @@ class ModelAbonents(QAbstractItemModel):
                     else:
                         value = "'{}'".format(value)
                     list_for_str.append("{} = {}".format(i[1], value))
-                SQL=updateSQL.format(name_main_table[0], ", ".join(list_for_str), "{}={}".format(self.getFieldPrimaryKey(), self.content[record][0]))
+                if self.content[record][0]:
+                    SQL=updateSQL.format(name_main_table[0], ", ".join(list_for_str), "{}={}".format(self.getFieldPrimaryKey(), self.content[record][0]))
+                else:
+                    SQL=insertSQL.format(name_main_table[0], ", ".join(list_for_str))
                 print(SQL)
                 cursor=connect.cursor()
-                cursor.execute(SQL)
+                ignoreExec = False
+                successExec = False # Переменная содержит результат выполнения SQL-запроса (успешно, неуспешно)
+                while (not successExec) and (not ignoreExec):
+                    try:
+                        cursor.execute(SQL)
+                    except IntegrityError as e:
+                        print(e.args) 
+                        resDialog=QMessageBox.critical(None, "Ошибка", f"Ошибка\n{e.args}",QMessageBox.Retry|QMessageBox.Ignore)
+                        print(f"resDialog = {resDialog}")
+                        if resDialog == QMessageBox.Ignore:
+                            ignoreExec = True
+                    else:
+                        successExec = True
             connect.commit()
         finally:
             connect.close()
