@@ -104,12 +104,14 @@ class numberDialog(QDialog):
                 finally:
                     connect.close()
                 comboBox.currentIndexChanged.connect(self.setFilter)#lambda:self.setFilter(comboBox.currentText()))
-            if itemFilter[2] == 'QLineEdit':
+            elif itemFilter[2] == 'QLineEdit':
                 lineEdit = QLineEdit()
                 lineEdit.setObjectName("lineEdit_"+itemFilter[0])
                 layout.addWidget(lineEdit)
                 lineEdit.editingFinished.connect(self.setFilter)#lambda:self.setFilter(lineEdit.text()))
                 self.listWidgets.append(lineEdit)
+            elif itemFilter[2] == 'value':
+                self.listWidgets.append(str(itemFilter[4]))
         return
 
     def initUi(self):
@@ -176,6 +178,8 @@ class numberDialog(QDialog):
                 filter_value = widget.text()
             if filter[2] == 'QComboBox':
                 filter_value = widget.currentText()
+            #if filter[2] == 'value':
+            #    filter_value = 
             if filter_value:
                 condition = "{} {}".format(filter[0], dict_conditions[filter[3]].format(filter_value))
                 listArgs.append(condition)
