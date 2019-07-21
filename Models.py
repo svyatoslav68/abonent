@@ -37,7 +37,7 @@ class ModelAbonents(QAbstractItemModel):
             cursor.execute(self.query)
         finally:
             connect.close()
-        print(self.query)
+        #print(self.query)
         # Заполнение списка названий колонок таблицы.
         # Определяется по значению параметра `as` из SQL-запроса
         self.namesColumn.clear()
@@ -69,7 +69,8 @@ class ModelAbonents(QAbstractItemModel):
         if not self.query:
             return ()
         else:
-            str_names = re.search("(?<=from)\s+\w+\s+\w+(?=[, \t])", self.query, flags=re.I).group().lstrip().rstrip()
+            modifyQuery = re.sub("\(SELECT.+\)","",self.query, flags=re.I)
+            str_names = re.search("(?<=from)\s+\w+\s+\w+(?=[, \t])", modifyQuery, flags=re.I).group().lstrip().rstrip()
             name_table = tuple(str_names.split(" "))
             #print("name_table = ", name_table)
             return name_table
@@ -87,9 +88,9 @@ class ModelAbonents(QAbstractItemModel):
         self.savedFields = {}
         if not self.query:
             return 
-        str_fields = re.search("(?<=select).+(?=from)", self.query, flags=re.I).group().lstrip().rstrip()
-        #list_fields = str_fields.split(',')
-        #print(f"list_fields = {list_fields}")
+        modifyQuery = re.sub("\(SELECT.+\)","i.result",self.query, flags=re.I)
+        #print(f"modifyQuery={modifyQuery}")
+        str_fields = re.search("(?<=select).+(?=from)", modifyQuery, flags=re.I).group().lstrip().rstrip()
         ind=0
         #print("list_fields=",list_fields)
         for s in re.findall("\w+\.\w+", str_fields):
@@ -99,7 +100,7 @@ class ModelAbonents(QAbstractItemModel):
                 self.savedFields[ind] = pair_field[1]
                 #results.append((ind, pair_field[1]))
             ind+=1
-        print(f"Сохраняемые поля:{self.savedFields}, ключи:{self.savedFields.keys()}")
+        #print(f"Сохраняемые поля:{self.savedFields}, ключи:{self.savedFields.keys()}")
         return 
 
     # Функции наследуемые из базового класса
@@ -112,7 +113,7 @@ class ModelAbonents(QAbstractItemModel):
                 theFlags = Qt.ItemIsEnabled|Qt.ItemIsEditable|Qt.ItemIsSelectable
             else:
                 theFlags = Qt.ItemIsEnabled
-        #print("model.flags() is work. theFlags={}".format(theFlags))
+        #print("model.flags() is work. theFlags={}. Column = {}".format(theFlags, index.column()))
         return theFlags
         
     def index(self, row, column, index):
@@ -136,15 +137,23 @@ class ModelAbonents(QAbstractItemModel):
         return QModelIndex()
 
     def rowCount(self, index):
-        return len(self.content)
+        if index.isValid():
+            return 0
+        else:
+            return len(self.content)
 
     def columnCount(self, index):
-        return len(self.namesColumn)
+        if index.isValid():
+            return 0
+        else:
+            return len(self.namesColumn)
 
     def headerData(self, section, orientation, role):
         if (orientation == Qt.Horizontal) and (role == Qt.DisplayRole):
             #print(self.namesColumn)
             return QVariant(self.namesColumn[section])
+        if (orientation == Qt.Vertical) and (role == Qt.DisplayRole):
+            return QVariant(section)
 
     def setData(self, index, value, role):
         if not index.isValid():
@@ -173,6 +182,26 @@ class ModelAbonents(QAbstractItemModel):
             self.content.insert(row, new_row)
         super().endInsertRows()
 
+    @pyqtSlot(list)
+    def deleteRows(self, listSelect):
+        """Слот удаляет выделенные записи. В качестве параметра получает список выделенных строк таблицы."""
+        setDelete = set() # Множество удаляемых записей
+        for i in listSelect:
+            #print(f"Выбрранный ряд:{i.row()}")
+            setDelete.add(self.content[i.row()][0])
+        #print(setDelete)
+        if setDelete:
+            deleteSQL = "DELETE FROM {} WHERE {} in {}".format(self.getNameMainTable()[0], self.getFieldPrimaryKey(), tuple(setDelete))
+            print(deleteSQL)
+            connect=getConnection()
+            try:
+                cursor=connect.cursor()
+                cursor.execute(deleteSQL)
+                connect.commit()
+            finally:
+                connect.close()
+            self.resetData() 
+
     @pyqtSlot()
     def saveData(self):
         """Метод сохраняет содержимое модели в таблицу базы данных.
@@ -186,7 +215,7 @@ class ModelAbonents(QAbstractItemModel):
                 list_for_str = []
                 name_main_table = self.getNameMainTable()
                 for i in self.savedFields:#(self.fillSavedFields(name_main_table)[1:]):
-                    print(f"from saveData - {i}")
+                    #print(f"from saveData - {i}")
                     value = self.content[record][i]#[0]]
                     if value == 'None':
                         # Если подчиенная запись не выбрана, то соответствующее поле заполняем значением NULL

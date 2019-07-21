@@ -1,11 +1,27 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
-from PyQt5.QtWidgets import QAbstractItemDelegate, QStyledItemDelegate 
+from PyQt5.QtWidgets import QAbstractItemDelegate, QStyledItemDelegate , QItemDelegate
 from PyQt5.QtWidgets import QComboBox, QMessageBox
+from PyQt5.QtGui import QPalette
 from mysqlconnector import getAdminConnection, getConnection
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QSize, QRect, QRectF
 from numberDialog import numberDialog
+import re
 
+class defaultDelegate(QStyledItemDelegate):
+    def paint(self, painter, option, index):
+        if index.model().data(index, Qt.EditRole) == 'None':
+            pass
+        else:
+            super().paint(painter, option, index)
+
+    def setEditorData(self, editor, index):
+        if index.model().data(index, Qt.EditRole) == 'None':
+            editor.setText("") 
+        else:
+            super().setEditorData(editor, index)
+
+    
 class comboDelegate(QStyledItemDelegate):
     def __init__(self,parent):
         self.content={}
@@ -127,6 +143,7 @@ class tableDelegate(QAbstractItemDelegate):
     для отображения данных используется функция от этой строки-function_draw."""
     def __init__(self, parent):
         self.result = -1, "None", "None"
+        self.listFilters = []
         super().__init__(parent)
 
     def setSlaveTable(self, name_table):
@@ -143,14 +160,11 @@ class tableDelegate(QAbstractItemDelegate):
 
     def createEditor(self, parent, option, index):
         #super().createEditor(parent, option, index)
-        listFlters = []
-        listFlters.append(dict(name_field='name_net', alias="Сеть", widget='QComboBox', condition = 'eq', SqlFill = "SELECT DISTINCT name_net FROM numbers") )
-        listFlters.append(dict(name_field='number', alias="Номер", widget='QLineEdit', condition = 'like', SqlFill = "")) 
-        formEditor = numberDialog(self.parent(), listFlters)
+        formEditor = numberDialog(self.parent(), self.listFilters)
         formEditor.setNameTable("numbers")
         formEditor.signalEndEdit.connect(self.closeAndCommitEditor)
         return formEditor
-        
+
     def setModelData(self, editor, model, index):
         """Если строка в таблице не выбрана, то в модель возвращается -1,
         если строка выбрана, то возвращается строка содержащая номер строки"""
@@ -204,10 +218,18 @@ class functionViewTableEditDelegate(tableDelegate):
         self._SqlSelectSlaveRecord = "SELECT * FROM {} WHERE {} = {{}}".format(self._name_slave_table, slave_index) 
         super().__init__(parent)
 
+    def createEditor(self, parent, option, index):
+        #super().createEditor(parent, option, index)
+        formEditor = numberDialog(self.parent(), self.listFilters)
+        formEditor.setNameTable(self._name_slave_table)
+        formEditor.signalEndEdit.connect(self.closeAndCommitEditor)
+        return formEditor
+
     def paint(self, painter, option, index):
         painter.save()
         if (index.data()) and (not (index.data() == 'None')):
             SqlSelect = self._SqlSelectSlaveRecord.format(index.data())
+            #print(SqlSelect)
             connect = getConnection()
             cursor = connect.cursor()
             cursor.execute(SqlSelect)
@@ -216,3 +238,75 @@ class functionViewTableEditDelegate(tableDelegate):
             painter.drawText(option.rect, Qt.AlignCenter, str(self._function_view(row)))
         painter.restore()
 
+class functionViewQueryEditDelegate(tableDelegate):
+    """Делегат который для отображения и редактирования данных в ячейке таблицы использует
+    форму, содержащую результат выполнения запроса к БД. Остальное все так же, как и
+    в functionViewTableEditDelegate"""
+    def __init__(self, parent, query, function_view):
+        """В таблицу передаются строка запроса и функция к строке 
+        результатов, использующаяся для вывода значения"""
+        self._function_view = function_view
+        self._query = query
+        self._primary_key = self.getFieldPrimaryKey()
+        super().__init__(parent)
+
+    def getFieldPrimaryKey(self):
+        """Метод возвращает название поля первичного ключа главной таблицы. Определяется по имени первого 
+        поля в запросе `query`"""
+        if not self._query:
+            return ""
+        else:
+            return re.search("(?<=SELECT\s)\w\..+?(?=as)", self._query, flags=re.I).group().rstrip().lstrip().split('.')
+            #return re.search("(?<=SELECT.+)\w\..+?(?=as)", self._query, flags=re.I).group().rstrip()
+
+    def paint(self, painter, option, index):
+        painter.save()
+        if (index.data()) and (not (index.data() == 'None')) and (self._primary_key):
+            connect = getConnection()
+            cursor = connect.cursor()
+            selectSQL = self._query+" WHERE {} = {}".format('.'.join(self._primary_key), index.data())
+            #print(f"selectSQL={selectSQL}")
+            cursor.execute(selectSQL)
+            row = cursor.fetchone()
+            connect.close()
+            painter.drawText(option.rect, Qt.AlignCenter, str(self._function_view(row)))
+        painter.restore()
+
+    def createEditor(self, parent, option, index):
+        #super().createEditor(parent, option, index)
+        formEditor = numberDialog(self.parent(), self.listFilters)
+        formEditor.setQuery(self._query)#"SELECT r.id_room, r.num_room as `№ пом`, r.cod_parent as parent, (SELECT address FROM rooms WHERE id_room = parent) as `Объект`, r.floor as `Этаж` FROM rooms r WHERE r.cod_parent > -1 ORDER BY level")
+        formEditor.signalEndEdit.connect(self.closeAndCommitEditor)
+        return formEditor
+
+class multiStringsDelegate(QItemDelegate):
+    """Делегат для отбражение в ячейке таблицы содержимого в несколько строк. Делегат служит для
+    отображения данных из связанной таблицы при отношении многие к одному."""
+    def __init__(self, parent):
+        super().__init__(parent)
+
+    #def sizeHint(self, option, index):
+    #    return QSize(100, 200)
+
+    #def paint(self, painter, option, index):
+    #    painter.save()
+    #    if index.data():
+    #        #print("paint from multiStringsDelegate")
+    #        listStrings = str(index.data()).split(',')
+    #        #painter.drawText(option.rect, Qt.AlignCenter, f"<<{str(index.data())}>>")
+    #        painter.drawText(option.rect, Qt.AlignCenter, '\n'.join(listStrings))
+    #        #painter.drawText(option.rect.adjusted(0,0,0,300), Qt.AlignCenter, '\n'.join(listStrings))
+    #    painter.restore()
+
+    def drawDisplay(self, painter, option, rect, text):
+        #print("drawDisplay()")
+        if text:
+            cg=option.state
+            painter.save()
+            #painter.setPen(option.palette.color(cg, QPalette::Text));
+            #listStrings = str(index.data()).split(',')
+            listStrings = text.split(',')
+            #painter.setPen(option.palette.color(cg, QPalette.Text));
+            painter.drawText(QRectF(rect.adjusted(0, 0, 0, 500)), '\n'.join(listStrings))#, option)
+            painter.restore()
+        

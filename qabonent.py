@@ -9,7 +9,7 @@ from PyQt5.QtGui import QPalette, QColor
 from PyQt5.QtCore import QModelIndex
 from MyWidgets import PhonesTableView
 from Models import ModelAbonents
-from Delegats import comboDelegate, comboBdDelegate, tableDelegate,functionViewTableEditDelegate
+from Delegats import comboDelegate, comboBdDelegate, tableDelegate, functionViewTableEditDelegate
 from numberDialog import numberDialog
 from dialognewrecord import newRecordDialog
 
@@ -20,6 +20,8 @@ class MainWindow(QMainWindow):
         self.abonentModel.setObjectName("abonentModel")
         self.phonesModel = ModelAbonents()
         self.phonesModel.setObjectName("phonesModel")
+        self.roomsModel = ModelAbonents()
+        self.roomsModel.setObjectName("roomsModel")
         self.initUI()
 
     def createActions(self):
@@ -31,21 +33,27 @@ class MainWindow(QMainWindow):
         self.actionNumbers=QAction("Номера")
         self.actionNumbers.setShortcut("Ctrl+N")
         self.actionNumbers.triggered.connect(self.showNumbers)
-        self.actionAbonents=QAction("Абоненты")
-        self.actionAbonents.setShortcut("Ctrl+A")
+        self.actionAbonents=QAction("Телефоны")
+        self.actionAbonents.setShortcut("Ctrl+T")
         self.actionAbonents.triggered.connect(self.showAbonents)
         self.actionUpdate=QAction("Обновить")
         self.actionUpdate.setShortcut("Ctrl+R")
-        self.actionSelectNumber=QAction("Выбор номера")
-        self.actionSelectNumber.triggered.connect(self.selectNumber)
+        #self.actionSelectNumber=QAction("Выбор номера")
+        #self.actionSelectNumber.triggered.connect(self.selectNumber)
         self.actionRooms=QAction("Помещения")
+        self.actionRooms.setShortcut("Ctrl+P")
+        self.actionRooms.triggered.connect(self.showRooms)
         self.actionAddRecord=QAction("Добавить запись")
+        self.actionAddRecord.setShortcut("Ctrl+A")
         self.actionAddRecord.triggered.connect(self.addRecord)
-        self.actionDeleteRecord=QAction("Удалить запись")
-        self.actionDeleteRecord.triggered.connect(self.deleteRecord)
+        self.actionDeleteRecords=QAction("Удалить записи")
+        self.actionDeleteRecords.setObjectName("actionDeleteRecords")
+        self.actionDeleteRecords.setShortcut("Ctrl+D")
+        #self.actionDeleteRecords.triggered.connect(self.deleteRecord)
         self.actionSaveData=QAction("Сохранить")
         self.actionSaveData.setShortcut("Ctrl+S")
         self.actionLoadData=QAction("Загрузить")
+        self.actionLoadData.setShortcut("Ctrl+L")
         self.actionHelpAbout=QAction("О программе")
         self.actionHelpAbout.setShortcut(Qt.Key_F1)
         self.actionHelpAbout.triggered.connect(self.helpSlot)
@@ -64,10 +72,10 @@ class MainWindow(QMainWindow):
         dataMenu.addAction(self.actionNumbers)
         dataMenu.addAction(self.actionAbonents)
         dataMenu.addAction(self.actionRooms)
-        dataMenu.addAction(self.actionSelectNumber)
+        #dataMenu.addAction(self.actionSelectNumber)
         tableMenu=appMenu.addMenu("&Таблица")
         tableMenu.addAction(self.actionAddRecord)
-        tableMenu.addAction(self.actionDeleteRecord)
+        tableMenu.addAction(self.actionDeleteRecords)
         tableMenu.addSeparator()
         tableMenu.addAction(self.actionLoadData)
         tableMenu.addAction(self.actionSaveData)
@@ -79,6 +87,7 @@ class MainWindow(QMainWindow):
         
     def createWidgets(self):
         self.mainTable = PhonesTableView()
+        self.mainTable.verticalHeader().setVisible(True)
         self.setCentralWidget(self.mainTable)
 
     def initUI(self):
@@ -92,59 +101,40 @@ class MainWindow(QMainWindow):
         self.createMenu()
         super().setWindowTitle("Справочник по телефонным аппаратам")
 
-    def setTableSizing(self, nameTable):
-        """Функция устанавливает размеры окон приложения и ширину столбцов таблиц"""
-        settings = QSettings("abonent.ini", QSettings.IniFormat)
-        nameSection = "tab_{}".format(nameTable)
-        settings.beginGroup(nameSection)
-        #print(f"nameGroup={nameSection}")
-        for i in range(len(self.mainTable.model().namesColumn)):
-            self.mainTable.setColumnWidth(i, int(settings.value(str(i), 100)))
-        settings.endGroup()
-
     def showNumbers(self):
         """Функция выводит информацию о номерах в главном окне приложения.
         Для QTableView устанавливаются делегаты по умолчанию"""
-        SQL="SELECT n.id_number as `Код`, n.name_net as `Сеть`, n.number as `Номер`, IFNULL(p.product_number, '') as `абонентская установка`, IFNULL(t.name_type, '') as `Тип`, n.port_number as `Номер порта`, n.permit as `Указание`  FROM numbers n LEFT JOIN phones p  ON n.id_number = p.cod_number LEFT JOIN types_TA t ON t.id = p.cod_type_TA"
+        SQL="SELECT n.id_number as `Код`, n.name_net as `Сеть`, n.number as `Номер`, IFNULL((SELECT GROUP_CONCAT(CONCAT(tta.name_type, ' №', ph.product_number)) FROM phones ph, types_TA tta WHERE n.id_number = ph.cod_number AND tta.id = ph.cod_type_TA GROUP BY ph.cod_number),'')  as `абонентская установка`, n.port_number as `Номер порта`, n.permit as `Указание`  FROM numbers n LEFT JOIN phones p  ON n.id_number = p.cod_number LEFT JOIN types_TA t ON t.id = p.cod_type_TA"
+        #SQL="SELECT n.id_number as `Код`, n.name_net as `Сеть`, n.number as `Номер`, IFNULL(p.product_number, '') as `абонентская установка`, IFNULL(t.name_type, '') as `Тип`, n.port_number as `Номер порта`, n.permit as `Указание`  FROM numbers n LEFT JOIN phones p  ON n.id_number = p.cod_number LEFT JOIN types_TA t ON t.id = p.cod_type_TA"
         self.phonesModel.setQuery(SQL)
         self.mainTable.setModel(self.phonesModel)
-        self.setTableSizing(self.phonesModel.getNameMainTable()[0])
-        threedelegate = QStyledItemDelegate(self)
-        self.mainTable.setItemDelegateForColumn(3, threedelegate)
-        fivedelegate = QStyledItemDelegate(self)
-        self.mainTable.setItemDelegateForColumn(5, fivedelegate)
-        sixdelegate = QStyledItemDelegate(self)
-        self.mainTable.setItemDelegateForColumn(6, sixdelegate)
         self.actionUpdate.triggered.connect(self.phonesModel.resetData)
         self.actionSaveData.triggered.connect(self.phonesModel.saveData)
+        self.actionDeleteRecords.triggered.connect(lambda:self.phonesModel.deleteRows(self.mainTable.selectedIndexes()))
 
     def showAbonents(self):
-        SQL="SELECT p.id_phone as `Код`, p.product_number as 'Зав. №', p.inv_number as 'Инв. №', p.cod_type_TA as 'Код типа', p.date_issue as 'Дата выпуска', p.state as 'Состояние', IFNULL(p.cod_number, 'None') as 'Код номера', n.name_net as 'Сеть', n.number as 'Номер' from phones p LEFT JOIN types_TA t ON p.cod_type_TA = t.id LEFT JOIN numbers n ON p.cod_number = n.id_number"
-        self.mainTable.setModel(self.abonentModel)
+        SQL="SELECT p.id_phone as `Код`, p.product_number as 'Зав. №', p.inv_number as 'Инв. №', p.cod_type_TA as 'Код типа', p.date_issue as 'Дата выпуска', p.state as 'Состояние', IFNULL(p.cod_number, 'None') as 'Код номера', n.name_net as 'Сеть', n.number as 'Номер', p.cod_room as 'Помещение' from phones p LEFT JOIN types_TA t ON p.cod_type_TA = t.id LEFT JOIN numbers n ON p.cod_number = n.id_number LEFT JOIN rooms r ON p.cod_room = r.id_room"
         self.abonentModel.setQuery(SQL)
-        self.setTableSizing(self.abonentModel.getNameMainTable()[0])
+        self.mainTable.setModel(self.abonentModel)
         self.actionUpdate.triggered.connect(self.mainTable.model().resetData)
-        #cboxDelegate = comboDelegate(self)
-        #cboxDelegate.fillContent("SELECT name_type as value, id as id FROM types_TA")
-        #self.mainTable.setItemDelegateForColumn(3, cboxDelegate)
-        typeDelegate = comboBdDelegate(self,'types_TA', 'name_type')
-        #print("id of typeDelegate = {}\ncontent = {}".format(id(typeDelegate), typeDelegate.content))
-        #print("id of typeDelegate = ",id(typeDelegate))
-        self.mainTable.setItemDelegateForColumn(3, typeDelegate)
-        stateDelegate = comboBdDelegate(self,'phone_status', 'name_status')
-        #print("id of typeDelegate = {}\ncontent = {}".format(id(typeDelegate), typeDelegate.content))
-        #print("id of stateDelegate = {}\ncontent = {}".format(id(stateDelegate), stateDelegate.content))
-        self.mainTable.setItemDelegateForColumn(5, stateDelegate)
+        #typeDelegate = comboBdDelegate(self,'types_TA', 'name_type')
+        #self.mainTable.setItemDelegateForColumn(3, typeDelegate)
+        #stateDelegate = comboBdDelegate(self,'phone_status', 'name_status')
+        #self.mainTable.setItemDelegateForColumn(5, stateDelegate)
         self.actionSaveData.triggered.connect(self.abonentModel.saveData)
+        #tabDelegate = functionViewTableEditDelegate(self, 'numbers', lambda row:row['name_net']+':'+row['number'])
+        #self.mainTable.setItemDelegateForColumn(6, tabDelegate)
+        self.actionDeleteRecords.triggered.connect(lambda:self.abonentModel.deleteRows(self.mainTable.selectedIndexes()))
 
-        #tabDelegate = tableDelegate(self)
-        tabDelegate = functionViewTableEditDelegate(self, 'numbers', lambda row:row['name_net']+':'+row['number'])
-        #tabDelegate.fillContent()
-        self.mainTable.setItemDelegateForColumn(6, tabDelegate)
-
-        #dateDelegate = QItemDelegate(self)
-        #self.mainTable.setItemDelegateForColumn(5, dateDelegate)
-        #self.mainTable.setItemDelegateForColumn(6, dateDelegate)
+    def showRooms(self):
+        #SQL="SELECT r.id_room as `Код`, r.num_room as `№ пом`, r.cod_parent as parent, (SELECT address FROM rooms WHERE id_room = parent) as `Объект`, r.floor as `Этаж` FROM rooms r WHERE r.cod_parent > -1 ORDER BY level"
+        #SQL="SELECT r.id_room as `Код`, r.num_room as `№ пом`, r.cod_parent as `Объект`, r.floor as `Этаж` FROM rooms r WHERE r.cod_parent > -1 ORDER BY level"
+        SQL="SELECT r.id_room as `Код`, r.num_room as `№ пом.`, r.cod_parent as `Объект`, r.floor as `Этаж`,  COUNT(p.id_phone) as `Количество`, GROUP_CONCAT(n.number) as `Номера` from rooms r LEFT JOIN phones p ON r.id_room = p.cod_room LEFT JOIN numbers n ON p.cod_number=n.id_number WHERE r.cod_parent > 0 GROUP BY(r.num_room)"
+        self.roomsModel.setQuery(SQL)
+        self.mainTable.setModel(self.roomsModel)
+        self.actionUpdate.triggered.connect(self.roomsModel.resetData)
+        self.actionSaveData.triggered.connect(self.roomsModel.saveData)
+        self.actionDeleteRecords.triggered.connect(lambda:self.roomsModel.deleteRows(self.mainTable.selectedIndexes()))
 
     @pyqtSlot()
     def helpSlot(self):
@@ -165,16 +155,22 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot()
     def addRecord(self):
-        self.mainTable.model().insertRows(self.mainTable.currentIndex().row(),1,QModelIndex())
-        #dialogNewRecord = newRecordDialog(self)
-        #if dialogNewRecord.exec() == QDialog.Accepted:
-        #    insertSQL = "INSERT into {} SET {}"
-        #    print(insertSQL)
+        if self.mainTable.model():
+            if self.mainTable.currentIndex().row() > 0:
+                #print(self.mainTable.currentIndex().row())
+                self.mainTable.model().insertRows(self.mainTable.currentIndex().row(),1,QModelIndex())
 
     @pyqtSlot()
     def deleteRecord(self):
-        deleteSQL = "DELETE FROM {} WHERE {} = {}"
-        QMessageBox.warning(self, "Запрос для удаления записи", deleteSQL, QMessageBox.Ok)
+        listSelect = self.mainTable.selectedIndexes()
+        setDelete = set() # Множество удаляемых записей
+        for i in listSelect:
+            #print(f"Выбрранный ряд:{i.row()}")
+            setDelete.add(self.mainTable.model().content[i.row()][0])
+        #print(setDelete)
+        deleteSQL = "DELETE FROM {} WHERE {} in {}".format(' '.join(self.mainTable.model().getNameMainTable()), self.mainTable.model().getFieldPrimaryKey(), tuple(setDelete))
+        #if QMessageBox.warning(self, "Запрос для удаления записи", deleteSQL, QMessageBox.Ok) == QMessageBox.Ok:
+
 
     @pyqtSlot()
     def slotSaveSettings(self):
@@ -191,7 +187,7 @@ class MainWindow(QMainWindow):
             settings.beginGroup(nameSection)
             #print(nameSection)
             for i in range(len(self.mainTable.model().namesColumn)):
-                print("i-й столбец; ширина = {}".format(self.mainTable.columnWidth(i)))
+                #print("i-й столбец; ширина = {}".format(self.mainTable.columnWidth(i)))
                 settings.setValue(str(i), format(self.mainTable.columnWidth(i)))
             settings.endGroup()
 
