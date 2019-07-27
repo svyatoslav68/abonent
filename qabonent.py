@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import QMainWindow, QMenu, QAction, QMessageBox, QItemDeleg
 from PyQt5.QtCore import Qt, QCoreApplication, pyqtSlot, QSettings, QSortFilterProxyModel
 from PyQt5.QtGui import QPalette, QColor
 from PyQt5.QtCore import QModelIndex
-from MyWidgets import PhonesTableView
+from MyWidgets import PhonesTableView, TableWithFiltres
 from Models import ModelAbonents, SortedProxyModel
 from Delegats import comboDelegate, comboBdDelegate, tableDelegate, functionViewTableEditDelegate
 from numberDialog import numberDialog
@@ -94,8 +94,8 @@ class MainWindow(QMainWindow):
         #appMenu.addMenu(helpMenu)
         
     def createWidgets(self):
-        self.mainTable = PhonesTableView()
-        self.mainTable.verticalHeader().setVisible(True)
+        #self.mainTable = PhonesTableView()
+        self.mainTable = TableWithFiltres()
         self.setCentralWidget(self.mainTable)
 
     def initUI(self):
@@ -116,6 +116,7 @@ class MainWindow(QMainWindow):
         #SQL="SELECT n.id_number as `Код`, n.name_net as `Сеть`, n.number as `Номер`, IFNULL(p.product_number, '') as `абонентская установка`, IFNULL(t.name_type, '') as `Тип`, n.port_number as `Номер порта`, n.permit as `Указание`  FROM numbers n LEFT JOIN phones p  ON n.id_number = p.cod_number LEFT JOIN types_TA t ON t.id = p.cod_type_TA"
         self.phonesModel.setQuery(SQL)
         self.mainTable.setModel(self.phonesModel)
+        self.mainTable.createWidgetsFiltres()
         self.actionUpdate.triggered.connect(self.phonesModel.resetData)
         self.actionSaveData.triggered.connect(self.phonesModel.saveData)
         self.actionDeleteRecords.triggered.connect(lambda:self.phonesModel.deleteRows(self.mainTable.selectedIndexes()))
@@ -125,6 +126,7 @@ class MainWindow(QMainWindow):
         self.abonentModel.setQuery(SQL)
         #self.mainTable.setModel(self.abonentModel)
         self.mainTable.setModel(self.proxyAbonentModel)
+        self.mainTable.createWidgetsFiltres()
         self.actionUpdate.triggered.connect(self.mainTable.model().sourceModel().resetData)
         #typeDelegate = comboBdDelegate(self,'types_TA', 'name_type')
         #self.mainTable.setItemDelegateForColumn(3, typeDelegate)
@@ -141,6 +143,7 @@ class MainWindow(QMainWindow):
         SQL="SELECT r.id_room as `Код`, r.num_room as `№ пом.`, r.cod_parent as `Объект`, r.floor as `Этаж`,  COUNT(p.id_phone) as `Количество`, GROUP_CONCAT(n.number) as `Номера` from rooms r LEFT JOIN phones p ON r.id_room = p.cod_room LEFT JOIN numbers n ON p.cod_number=n.id_number WHERE r.cod_parent > 0 GROUP BY(r.num_room)"
         self.roomsModel.setQuery(SQL)
         self.mainTable.setModel(self.roomsModel)
+        self.mainTable.createWidgetsFiltres()
         self.actionUpdate.triggered.connect(self.roomsModel.resetData)
         self.actionSaveData.triggered.connect(self.roomsModel.saveData)
         self.actionDeleteRecords.triggered.connect(lambda:self.roomsModel.deleteRows(self.mainTable.selectedIndexes()))

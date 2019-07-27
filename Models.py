@@ -260,6 +260,7 @@ class SortedProxyModel(QSortFilterProxyModel):
         print("constructor ProxyModel")
         self.dict_ordering = {}
         super().__init__()
+        #savedFields = sourceModel().savedFields
 
     def sort(self, column, order):
         #print(f"From {self.sender()} sort(), column = {column}, order = {order}")
