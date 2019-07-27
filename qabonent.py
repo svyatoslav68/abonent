@@ -4,11 +4,11 @@
 from sys import argv, exit
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QLineEdit,QVBoxLayout, QHBoxLayout, QCheckBox, QSpinBox
 from PyQt5.QtWidgets import QMainWindow, QMenu, QAction, QMessageBox, QItemDelegate, QStyledItemDelegate, QDialog
-from PyQt5.QtCore import Qt, QCoreApplication, pyqtSlot, QSettings
+from PyQt5.QtCore import Qt, QCoreApplication, pyqtSlot, QSettings, QSortFilterProxyModel
 from PyQt5.QtGui import QPalette, QColor
 from PyQt5.QtCore import QModelIndex
 from MyWidgets import PhonesTableView
-from Models import ModelAbonents
+from Models import ModelAbonents, SortedProxyModel
 from Delegats import comboDelegate, comboBdDelegate, tableDelegate, functionViewTableEditDelegate
 from numberDialog import numberDialog
 from dialognewrecord import newRecordDialog
@@ -18,6 +18,9 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.abonentModel = ModelAbonents()
         self.abonentModel.setObjectName("abonentModel")
+        self.proxyAbonentModel = SortedProxyModel()
+        self.proxyAbonentModel.setObjectName("proxyAbonentModel")
+        self.proxyAbonentModel.setSourceModel(self.abonentModel)
         self.phonesModel = ModelAbonents()
         self.phonesModel.setObjectName("phonesModel")
         self.roomsModel = ModelAbonents()
@@ -28,6 +31,9 @@ class MainWindow(QMainWindow):
         self.actionViewSaveSettings = QAction("Сохранить настройки")
         self.actionViewSaveSettings.triggered.connect(self.slotSaveSettings)
         self.actionViewGetDefault = QAction("Сбросить настройки")
+        self.actionViewFilterTab = QAction("Панель фильтрации")
+        self.actionViewFilterTab.setShortcut("Ctrl+F")
+        self.actionViewFilterTab.setCheckable(True)
         self.actionExit=QAction("Выход") 
         self.actionExit.triggered.connect(QCoreApplication.instance().quit)
         self.actionNumbers=QAction("Номера")
@@ -67,6 +73,8 @@ class MainWindow(QMainWindow):
         viewMenu=appMenu.addMenu("&Вид")
         viewMenu.addAction(self.actionViewSaveSettings)
         viewMenu.addAction(self.actionViewGetDefault)
+        viewMenu.addSeparator()
+        viewMenu.addAction(self.actionViewFilterTab)
         #appMenu.addMenu(fileMenu)
         dataMenu=appMenu.addMenu("&Данные")
         dataMenu.addAction(self.actionNumbers)
@@ -113,10 +121,11 @@ class MainWindow(QMainWindow):
         self.actionDeleteRecords.triggered.connect(lambda:self.phonesModel.deleteRows(self.mainTable.selectedIndexes()))
 
     def showAbonents(self):
-        SQL="SELECT p.id_phone as `Код`, p.product_number as 'Зав. №', p.inv_number as 'Инв. №', p.cod_type_TA as 'Код типа', p.date_issue as 'Дата выпуска', p.state as 'Состояние', IFNULL(p.cod_number, 'None') as 'Код номера', n.name_net as 'Сеть', n.number as 'Номер', p.cod_room as 'Помещение' from phones p LEFT JOIN types_TA t ON p.cod_type_TA = t.id LEFT JOIN numbers n ON p.cod_number = n.id_number LEFT JOIN rooms r ON p.cod_room = r.id_room"
+        SQL="SELECT p.id_phone as `Код`, p.product_number as 'Зав. №', p.inv_number as 'Инв. №', p.cod_type_TA as 'Код типа', p.date_issue as 'Дата выпуска', p.state as 'Состояние', IFNULL(p.cod_number, 'None') as 'Код номера', n.name_net as 'Сеть', n.number as 'Номер', p.cod_room as 'Помещение' from phones p LEFT JOIN types_TA t ON p.cod_type_TA = t.id LEFT JOIN numbers n ON p.cod_number = n.id_number LEFT JOIN rooms r ON p.cod_room = r.id_room ORDER BY p.cod_type_TA"
         self.abonentModel.setQuery(SQL)
-        self.mainTable.setModel(self.abonentModel)
-        self.actionUpdate.triggered.connect(self.mainTable.model().resetData)
+        #self.mainTable.setModel(self.abonentModel)
+        self.mainTable.setModel(self.proxyAbonentModel)
+        self.actionUpdate.triggered.connect(self.mainTable.model().sourceModel().resetData)
         #typeDelegate = comboBdDelegate(self,'types_TA', 'name_type')
         #self.mainTable.setItemDelegateForColumn(3, typeDelegate)
         #stateDelegate = comboBdDelegate(self,'phone_status', 'name_status')
@@ -182,11 +191,15 @@ class MainWindow(QMainWindow):
         settings.setValue("window_x", self.geometry().x())
         settings.setValue("window_y", self.geometry().y())
         settings.endGroup()
-        if self.mainTable.model():
-            nameSection = "tab_{}".format(self.mainTable.model().getNameMainTable()[0])
+        if isinstance(self.mainTable.model(), ModelAbonents):
+            innerModel = self.mainTable.model()
+        elif isinstance(self.mainTable.model(), QSortFilterProxyModel):
+            innerModel = self.mainTable.model().sourceModel()
+        if innerModel:
+            nameSection = "tab_{}".format(innerModel.getNameMainTable()[0])
             settings.beginGroup(nameSection)
             #print(nameSection)
-            for i in range(len(self.mainTable.model().namesColumn)):
+            for i in range(len(innerModel.namesColumn)):
                 #print("i-й столбец; ширина = {}".format(self.mainTable.columnWidth(i)))
                 settings.setValue(str(i), format(self.mainTable.columnWidth(i)))
             settings.endGroup()

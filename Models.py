@@ -2,7 +2,7 @@
 # Модели данных. Модели создаются с помощью SQL-запросов к БД
 # Здесь же описываются делегаты, используемые в приложении
 from PyQt5.QtCore import pyqtSlot
-from PyQt5.QtCore import QAbstractItemModel, Qt, QVariant, QModelIndex
+from PyQt5.QtCore import QAbstractItemModel, Qt, QVariant, QModelIndex, QSortFilterProxyModel
 from mysqlconnector import getAdminConnection, getConnection
 from pymysql import IntegrityError
 from PyQt5.QtWidgets import QComboBox, QMessageBox
@@ -188,10 +188,10 @@ class ModelAbonents(QAbstractItemModel):
         setDelete = set() # Множество удаляемых записей
         for i in listSelect:
             #print(f"Выбрранный ряд:{i.row()}")
-            setDelete.add(self.content[i.row()][0])
+            setDelete.add(str(self.content[i.row()][0]))
         #print(setDelete)
         if setDelete:
-            deleteSQL = "DELETE FROM {} WHERE {} in {}".format(self.getNameMainTable()[0], self.getFieldPrimaryKey(), tuple(setDelete))
+            deleteSQL = "DELETE FROM {} WHERE {} in ({})".format(self.getNameMainTable()[0], self.getFieldPrimaryKey(), ','.join(setDelete))
             print(deleteSQL)
             connect=getConnection()
             try:
@@ -215,9 +215,9 @@ class ModelAbonents(QAbstractItemModel):
                 list_for_str = []
                 name_main_table = self.getNameMainTable()
                 for i in self.savedFields:#(self.fillSavedFields(name_main_table)[1:]):
-                    #print(f"from saveData - {i}")
                     value = self.content[record][i]#[0]]
-                    if value == 'None':
+                    if (value == None) or (value == 'None'):
+                        #print(f"from saveData - {i}; value = {value}")
                         # Если подчиенная запись не выбрана, то соответствующее поле заполняем значением NULL
                         value = 'NULL'
                     elif isinstance(value, tuple):
@@ -252,8 +252,22 @@ class ModelAbonents(QAbstractItemModel):
             connect.close()
         self.modifiedIndexes.clear()
 
+    def sort(self, column, order):
+        print(f"From sort(), column = {column}, order = {order}")
+        
+class SortedProxyModel(QSortFilterProxyModel):
+    def __init__(self):
+        print("constructor ProxyModel")
+        self.dict_ordering = {}
+        super().__init__()
+
+    def sort(self, column, order):
+        #print(f"From {self.sender()} sort(), column = {column}, order = {order}")
+        self.dict_ordering[column] = int(not self.dict_ordering.get(column)) if column in self.dict_ordering else Qt.AscendingOrder
+        super().sort(column, self.dict_ordering[column])
+
 class simpleTableModel(QAbstractItemModel):
     def __init__(self, strSQL):
-        super().__init__();
+        super().__init__()
         #self.bdConnect = getConnection()
         
