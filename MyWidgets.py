@@ -105,6 +105,7 @@ class TableWithFiltres(QWidget):
     def model(self):
         return self.table.model()
 
+<<<<<<< HEAD
     def currentIndex(self):
         return self.table.currentIndex()
 
@@ -115,6 +116,9 @@ class TableWithFiltres(QWidget):
             del widget
             #self.filterlayout.takeAt(0)
 
+=======
+    def createWidgetsFiltres(self):
+>>>>>>> 2f62efbbfda7c88905e78a5f0d4b18abe818a825
         for i in self.model().savedFields:
             label = QLabel(self.model().savedFields[i])
             self.filterlayout.addWidget(label)
