@@ -1,6 +1,7 @@
 # В модуле создаются виджеты необходимые для реализации модели 
 # Модель - представление для программы abonent
-from PyQt5.QtWidgets import QTableView, QItemDelegate
+from PyQt5.QtWidgets import QTableView, QItemDelegate, QWidget, QHBoxLayout, QVBoxLayout 
+from PyQt5.QtWidgets import QLabel
 from PyQt5.QtCore import Qt, QSettings, QModelIndex, QSortFilterProxyModel
 from Models import ModelAbonents
 from Delegats import comboDelegate, comboBdDelegate, tableDelegate, functionViewTableEditDelegate, defaultDelegate, functionViewQueryEditDelegate, multiStringsDelegate
@@ -11,6 +12,7 @@ class PhonesTableView(QTableView):
     def __init__(self):
         super().__init__()
         self.horizontalHeader().sectionClicked.connect(lambda:self.sortByColumn(self.currentIndex().column(), Qt.AscendingOrder))
+        self.verticalHeader().setVisible(True)
 
 
     def setTableSizing(self, nameTable):
@@ -26,7 +28,7 @@ class PhonesTableView(QTableView):
         for i in range(len(innerModel.namesColumn)):
             self.setColumnWidth(i, int(settings.value(str(i), 100)))
         settings.endGroup()
-    
+
     def setModel(self, model):
         if isinstance(model, ModelAbonents):
             innerModel = model
@@ -81,6 +83,35 @@ class PhonesTableView(QTableView):
                 self.edit(self.currentIndex())
         else:
             super().keyPressEvent(event)
+
+class TableWithFiltres(QWidget):
+    """Виджет, который содержит табличное представление и соответствующую содержанию панель фильтрации.
+    Является потомком QWidget. В качестве табличного представления используется PhonesTableView"""
+    def __init__(self):
+        super().__init__()
+        hboxlayout = QHBoxLayout()
+        self.filterlayout = QVBoxLayout()
+        self.table = PhonesTableView()
+        hboxlayout.addLayout(self.filterlayout)
+        hboxlayout.addWidget(self.table)
+        self.setLayout(hboxlayout)
+
+    def setTableSizing(self, nameTable):
+        self.table(nameTable)
+
+    def setModel(self, model):
+        self.table.setModel(model)
+
+    def model(self):
+        return self.table.model()
+
+    def createWidgetsFiltres(self):
+        for i in self.model().savedFields:
+            label = QLabel(self.model().savedFields[i])
+            self.filterlayout.addWidget(label)
+        self.filterlayout.addStretch()
+        #if len(self.model().savedFields) > 0:
+
 
 class AbonentsTableView(QTableView):
     # Табличное представление для отображения таблицы данных о телефонных номерах
