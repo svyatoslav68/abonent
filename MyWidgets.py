@@ -1,8 +1,8 @@
 # В модуле создаются виджеты необходимые для реализации модели 
 # Модель - представление для программы abonent
 from PyQt5.QtWidgets import QTableView, QItemDelegate, QWidget, QHBoxLayout, QVBoxLayout 
-from PyQt5.QtWidgets import QLabel
-from PyQt5.QtCore import Qt, QSettings, QModelIndex, QSortFilterProxyModel
+from PyQt5.QtWidgets import QLabel, QLineEdit
+from PyQt5.QtCore import Qt, QSettings, QModelIndex, QSortFilterProxyModel, pyqtSlot
 from Models import ModelAbonents
 from Delegats import comboDelegate, comboBdDelegate, tableDelegate, functionViewTableEditDelegate, defaultDelegate, functionViewQueryEditDelegate, multiStringsDelegate
 
@@ -96,6 +96,22 @@ class TableWithFiltres(QWidget):
         hboxlayout.addWidget(self.table)
         self.setLayout(hboxlayout)
 
+    @pyqtSlot(bool)
+    def hideFilterPanel(self, hide):
+        """Слот предназначен для показа|скрытия панели фильтрации.
+        Скрытие происходит при значении параметра hide=True."""
+        print(hide)
+        def hideWidgets(layout, hide):
+            """Рекурсивная функция скрытия виджетов, содержащихся в layout"""
+            for i in range(layout.count()):
+                item = layout.itemAt(i)
+                if item.layout():
+                    hideWidgets(item.layout(), hide)
+                    continue
+                if item.widget():
+                    item.widget().setVisible(hide)
+        hideWidgets(self.filterlayout, hide)
+
     def setTableSizing(self, nameTable):
         self.table(nameTable)
 
@@ -105,25 +121,35 @@ class TableWithFiltres(QWidget):
     def model(self):
         return self.table.model()
 
-<<<<<<< HEAD
     def currentIndex(self):
         return self.table.currentIndex()
 
     def createWidgetsFiltres(self):
-        for i in range(self.filterlayout.count()):
-            widget = self.filterlayout.itemAt(0).widget()
-            self.filterlayout.removeWidget(widget)
-            del widget
-            #self.filterlayout.takeAt(0)
-
-=======
-    def createWidgetsFiltres(self):
->>>>>>> 2f62efbbfda7c88905e78a5f0d4b18abe818a825
-        for i in self.model().savedFields:
-            label = QLabel(self.model().savedFields[i])
-            self.filterlayout.addWidget(label)
+        def clearLayout(layout):
+            while layout.count():
+                item = layout.takeAt(0)
+                if item.layout():
+                    clearLayout(item.layout())
+                widget = item.widget()
+                if widget is not None:
+                    widget.deleteLater()
+        clearLayout(self.filterlayout)
+        if isinstance(self.model(), ModelAbonents):
+            innerModel = self.model()
+        elif isinstance(self.model(), QSortFilterProxyModel):
+            innerModel = self.model().sourceModel()
+        for i in innerModel.savedFields:
+            label = QLabel(innerModel.savedFields[i])
+            linefilter = QLineEdit()
+            fieldlayout = QHBoxLayout()
+            fieldlayout.addWidget(label)
+            fieldlayout.addStretch()
+            fieldlayout.addWidget(linefilter)
+            self.filterlayout.addLayout(fieldlayout)
+            #self.filterlayout.addWidget(label)
         self.filterlayout.addStretch()
         #if len(self.model().savedFields) > 0:
+        self.hideFilterPanel(False)
 
 
 class AbonentsTableView(QTableView):

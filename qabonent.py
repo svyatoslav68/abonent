@@ -34,6 +34,7 @@ class MainWindow(QMainWindow):
         self.actionViewFilterTab = QAction("Панель фильтрации")
         self.actionViewFilterTab.setShortcut("Ctrl+F")
         self.actionViewFilterTab.setCheckable(True)
+        self.actionViewFilterTab.triggered.connect(self.mainTable.hideFilterPanel)
         self.actionExit=QAction("Выход") 
         self.actionExit.triggered.connect(QCoreApplication.instance().quit)
         self.actionNumbers=QAction("Номера")
