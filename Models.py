@@ -120,7 +120,7 @@ class ModelAbonents(QAbstractItemModel):
         #print("model.index() is work, row={}, column={}".format(row, column))
         return super().createIndex(row, column)
 
-    def data(self, index, role):
+    def data(self, index, role=Qt.DisplayRole):
         #import ipdb; ipdb.set_trace()
         if not index.isValid():
             return ""
@@ -259,6 +259,7 @@ class SortedProxyModel(QSortFilterProxyModel):
     def __init__(self):
         print("constructor ProxyModel")
         self.dict_ordering = {}
+        self.dict_filtering = {} # Словарь для фильтрации. Ключ-название поля таблицы, значение-параметр фильтрации 
         super().__init__()
         #savedFields = sourceModel().savedFields
 
@@ -266,6 +267,31 @@ class SortedProxyModel(QSortFilterProxyModel):
         #print(f"From {self.sender()} sort(), column = {column}, order = {order}")
         self.dict_ordering[column] = int(not self.dict_ordering.get(column)) if column in self.dict_ordering else Qt.AscendingOrder
         super().sort(column, self.dict_ordering[column])
+
+    @pyqtSlot(str)
+    def changeParametrsFiltrering(self, value_filter):
+        """Слот вызывается, когда изменяется содержимое соответствующего
+        элемента управления. При этом вызывается защищенная функция
+        invalidateFilter()"""
+        #print(f"key={self.sender().objectName()}; value={value_filter}")
+        self.dict_filtering[int(self.sender().objectName())]=value_filter
+        print(self.dict_filtering)
+        self.invalidateFilter()
+
+    def filterAcceptsRow(self, sourceRow, sourceParent):
+        if bool(self.dict_filtering):
+            for i in range(len(self.sourceModel().namesColumn)):
+                #print(f"filterAcceptRow.column={i}")
+                if bool(self.dict_filtering.get(i)):
+                    index = self.sourceModel().index(sourceRow, i, sourceParent)
+                    #print(f"{self.dict_filtering[i]};{self.sourceModel().data(index)}")
+                    try:
+                        if not (self.dict_filtering[i] in str(self.sourceModel().data(index))):
+                            return False
+                    except:
+                        print(f"{self.dict_filtering[i]};{self.sourceModel().data(index)}")
+        #if O
+        return True;
 
 class simpleTableModel(QAbstractItemModel):
     def __init__(self, strSQL):

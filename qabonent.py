@@ -121,6 +121,7 @@ class MainWindow(QMainWindow):
         self.actionUpdate.triggered.connect(self.phonesModel.resetData)
         self.actionSaveData.triggered.connect(self.phonesModel.saveData)
         self.actionDeleteRecords.triggered.connect(lambda:self.phonesModel.deleteRows(self.mainTable.selectedIndexes()))
+        self.actionViewFilterTab.triggered.emit(self.actionViewFilterTab.isChecked())
 
     def showAbonents(self):
         SQL="SELECT p.id_phone as `Код`, p.product_number as 'Зав. №', p.inv_number as 'Инв. №', p.cod_type_TA as 'Код типа', p.date_issue as 'Дата выпуска', p.state as 'Состояние', IFNULL(p.cod_number, 'None') as 'Код номера', n.name_net as 'Сеть', n.number as 'Номер', p.cod_room as 'Помещение' from phones p LEFT JOIN types_TA t ON p.cod_type_TA = t.id LEFT JOIN numbers n ON p.cod_number = n.id_number LEFT JOIN rooms r ON p.cod_room = r.id_room ORDER BY p.cod_type_TA"
@@ -137,6 +138,7 @@ class MainWindow(QMainWindow):
         #tabDelegate = functionViewTableEditDelegate(self, 'numbers', lambda row:row['name_net']+':'+row['number'])
         #self.mainTable.setItemDelegateForColumn(6, tabDelegate)
         self.actionDeleteRecords.triggered.connect(lambda:self.abonentModel.deleteRows(self.mainTable.selectedIndexes()))
+        self.actionViewFilterTab.triggered.emit(self.actionViewFilterTab.isChecked())
 
     def showRooms(self):
         #SQL="SELECT r.id_room as `Код`, r.num_room as `№ пом`, r.cod_parent as parent, (SELECT address FROM rooms WHERE id_room = parent) as `Объект`, r.floor as `Этаж` FROM rooms r WHERE r.cod_parent > -1 ORDER BY level"
@@ -148,6 +150,7 @@ class MainWindow(QMainWindow):
         self.actionUpdate.triggered.connect(self.roomsModel.resetData)
         self.actionSaveData.triggered.connect(self.roomsModel.saveData)
         self.actionDeleteRecords.triggered.connect(lambda:self.roomsModel.deleteRows(self.mainTable.selectedIndexes()))
+        self.actionViewFilterTab.triggered.emit(self.actionViewFilterTab.isChecked())
 
     @pyqtSlot()
     def helpSlot(self):

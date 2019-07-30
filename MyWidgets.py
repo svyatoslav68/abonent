@@ -90,9 +90,12 @@ class TableWithFiltres(QWidget):
     def __init__(self):
         super().__init__()
         hboxlayout = QHBoxLayout()
-        self.filterlayout = QVBoxLayout()
         self.table = PhonesTableView()
-        hboxlayout.addLayout(self.filterlayout)
+        self.filterWidget = QWidget()
+        self.filterWidget.setVisible(False)
+        self.filterlayout = QVBoxLayout()
+        self.filterWidget.setLayout(self.filterlayout)
+        hboxlayout.addWidget(self.filterWidget)
         hboxlayout.addWidget(self.table)
         self.setLayout(hboxlayout)
 
@@ -100,17 +103,18 @@ class TableWithFiltres(QWidget):
     def hideFilterPanel(self, hide):
         """Слот предназначен для показа|скрытия панели фильтрации.
         Скрытие происходит при значении параметра hide=True."""
-        print(hide)
-        def hideWidgets(layout, hide):
-            """Рекурсивная функция скрытия виджетов, содержащихся в layout"""
-            for i in range(layout.count()):
-                item = layout.itemAt(i)
-                if item.layout():
-                    hideWidgets(item.layout(), hide)
-                    continue
-                if item.widget():
-                    item.widget().setVisible(hide)
-        hideWidgets(self.filterlayout, hide)
+        #print(hide)
+        #def hideWidgets(layout, hide):
+        #    """Рекурсивная функция скрытия виджетов, содержащихся в layout"""
+        #    for i in range(layout.count()):
+        #        item = layout.itemAt(i)
+        #        if item.layout():
+        #            hideWidgets(item.layout(), hide)
+        #            continue
+        #        if item.widget():
+        #            item.widget().setVisible(hide)
+        #hideWidgets(self.filterlayout, hide)
+        self.filterWidget.setVisible(hide)
 
     def setTableSizing(self, nameTable):
         self.table(nameTable)
@@ -139,8 +143,11 @@ class TableWithFiltres(QWidget):
         elif isinstance(self.model(), QSortFilterProxyModel):
             innerModel = self.model().sourceModel()
         for i in innerModel.savedFields:
-            label = QLabel(innerModel.savedFields[i])
+            label = QLabel(innerModel.namesColumn[i])
             linefilter = QLineEdit()
+            linefilter.setObjectName(str(i))#innerModel.savedFields[i])
+            if isinstance(self.model(), QSortFilterProxyModel):
+                linefilter.textChanged.connect(self.model().changeParametrsFiltrering)
             fieldlayout = QHBoxLayout()
             fieldlayout.addWidget(label)
             fieldlayout.addStretch()
