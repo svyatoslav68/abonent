@@ -30,6 +30,8 @@ class PhonesTableView(QTableView):
         settings.endGroup()
 
     def setModel(self, model):
+        """Функция переоределяется для того, чтобы была возможность установить делегаты для различных столбцов
+        представления. Выбор делегата для столбца определяется в зависимости от того, какая модель подключается"""
         if isinstance(model, ModelAbonents):
             innerModel = model
         elif isinstance(model, QSortFilterProxyModel):
@@ -130,7 +132,11 @@ class TableWithFiltres(QWidget):
         return self.table.currentIndex()
 
     def createWidgetsFiltres(self):
+        """Создание виджета панели фильтрации. Тип виджета для фильтрации по значению 
+        поля определяется из анализа типа делегата установленного для соответсвующего
+        столбца представления"""
         def clearLayout(layout):
+            """Рекурсивная функция для очистки layout'а"""
             while layout.count():
                 item = layout.takeAt(0)
                 if item.layout():
@@ -147,14 +153,15 @@ class TableWithFiltres(QWidget):
         for i in innerModel.savedFields:
             label = QLabel(innerModel.namesColumn[i])
             delegateForColumn = self.table.itemDelegateForColumn(i)
-            if isinstance(delegateForColumn, defaultDelegate):
+            if isinstance(delegateForColumn, defaultDelegate): # Для делегата по умолчанию выбирается QLineEdit
                 itemFilter = QLineEdit()
                 if isinstance(self.model(), QSortFilterProxyModel):
                     itemFilter.textChanged.connect(self.model().changeParametrsFiltrering)
             elif isinstance(delegateForColumn, comboDelegate):
                 itemFilter = QComboBox()
                 itemFilter.addItems(delegateForColumn.content.values())
-            elif isinstance(delegateForColumn, comboBdDelegate):
+            elif isinstance(delegateForColumn, comboBdDelegate): 
+                # Для delegateForColumn выбирается QComboBox, items которого заполняется из поля content делегата
                 itemFilter = QComboBox()
                 itemFilter.addItems(delegateForColumn.content.values())
                 if isinstance(self.model(), QSortFilterProxyModel):
@@ -164,9 +171,9 @@ class TableWithFiltres(QWidget):
             itemFilter.setObjectName(str(i))#innerModel.savedFields[i])
             #print(f"i={i}, type={type(itemFilter)}, name={itemFilter.objectName()}, id={id(itemFilter)}")
             fieldlayout = QHBoxLayout()
-            fieldlayout.addWidget(label)
-            fieldlayout.addStretch()
-            fieldlayout.addWidget(itemFilter)
+            fieldlayout.addWidget(label,1)
+            #fieldlayout.addStretch()
+            fieldlayout.addWidget(itemFilter,2)
             self.filterlayout.addLayout(fieldlayout)
             #self.filterlayout.addWidget(label)
             #count += 1
