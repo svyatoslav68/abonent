@@ -1,7 +1,7 @@
 # В модуле создаются виджеты необходимые для реализации модели 
 # Модель - представление для программы abonent
 from PyQt5.QtWidgets import QTableView, QItemDelegate, QWidget, QHBoxLayout, QVBoxLayout 
-from PyQt5.QtWidgets import QLabel, QLineEdit
+from PyQt5.QtWidgets import QLabel, QLineEdit, QComboBox
 from PyQt5.QtCore import Qt, QSettings, QModelIndex, QSortFilterProxyModel, pyqtSlot
 from Models import ModelAbonents
 from Delegats import comboDelegate, comboBdDelegate, tableDelegate, functionViewTableEditDelegate, defaultDelegate, functionViewQueryEditDelegate, multiStringsDelegate
@@ -92,11 +92,12 @@ class TableWithFiltres(QWidget):
         hboxlayout = QHBoxLayout()
         self.table = PhonesTableView()
         self.filterWidget = QWidget()
+        #self.filterWidget.maximumWidth = 100#self.width()/3
         self.filterWidget.setVisible(False)
         self.filterlayout = QVBoxLayout()
         self.filterWidget.setLayout(self.filterlayout)
-        hboxlayout.addWidget(self.filterWidget)
-        hboxlayout.addWidget(self.table)
+        hboxlayout.addWidget(self.filterWidget, 1)
+        hboxlayout.addWidget(self.table,3)
         self.setLayout(hboxlayout)
 
     @pyqtSlot(bool)
@@ -142,18 +143,33 @@ class TableWithFiltres(QWidget):
             innerModel = self.model()
         elif isinstance(self.model(), QSortFilterProxyModel):
             innerModel = self.model().sourceModel()
+        #count = 0
         for i in innerModel.savedFields:
             label = QLabel(innerModel.namesColumn[i])
-            linefilter = QLineEdit()
-            linefilter.setObjectName(str(i))#innerModel.savedFields[i])
-            if isinstance(self.model(), QSortFilterProxyModel):
-                linefilter.textChanged.connect(self.model().changeParametrsFiltrering)
+            delegateForColumn = self.table.itemDelegateForColumn(i)
+            if isinstance(delegateForColumn, defaultDelegate):
+                itemFilter = QLineEdit()
+                if isinstance(self.model(), QSortFilterProxyModel):
+                    itemFilter.textChanged.connect(self.model().changeParametrsFiltrering)
+            elif isinstance(delegateForColumn, comboDelegate):
+                itemFilter = QComboBox()
+                itemFilter.addItems(delegateForColumn.content.values())
+            elif isinstance(delegateForColumn, comboBdDelegate):
+                itemFilter = QComboBox()
+                itemFilter.addItems(delegateForColumn.content.values())
+                if isinstance(self.model(), QSortFilterProxyModel):
+                    itemFilter.currentIndexChanged.connect(self.model().changeIndexFiltrering)
+            else:
+                continue
+            itemFilter.setObjectName(str(i))#innerModel.savedFields[i])
+            #print(f"i={i}, type={type(itemFilter)}, name={itemFilter.objectName()}, id={id(itemFilter)}")
             fieldlayout = QHBoxLayout()
             fieldlayout.addWidget(label)
             fieldlayout.addStretch()
-            fieldlayout.addWidget(linefilter)
+            fieldlayout.addWidget(itemFilter)
             self.filterlayout.addLayout(fieldlayout)
             #self.filterlayout.addWidget(label)
+            #count += 1
         self.filterlayout.addStretch()
         #if len(self.model().savedFields) > 0:
         self.hideFilterPanel(False)

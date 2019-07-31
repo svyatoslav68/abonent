@@ -23,8 +23,14 @@ class MainWindow(QMainWindow):
         self.proxyAbonentModel.setSourceModel(self.abonentModel)
         self.phonesModel = ModelAbonents()
         self.phonesModel.setObjectName("phonesModel")
+        self.proxyPhonesModel = SortedProxyModel()
+        self.proxyPhonesModel.setObjectName("proxyPhonesModel")
+        self.proxyPhonesModel.setSourceModel(self.phonesModel)
         self.roomsModel = ModelAbonents()
         self.roomsModel.setObjectName("roomsModel")
+        self.proxyRoomsModel = SortedProxyModel()
+        self.proxyRoomsModel.setObjectName("proxyRoomsModel")
+        self.proxyRoomsModel.setSourceModel(self.roomsModel)
         self.initUI()
 
     def createActions(self):
@@ -113,10 +119,10 @@ class MainWindow(QMainWindow):
     def showNumbers(self):
         """Функция выводит информацию о номерах в главном окне приложения.
         Для QTableView устанавливаются делегаты по умолчанию"""
-        SQL="SELECT n.id_number as `Код`, n.name_net as `Сеть`, n.number as `Номер`, IFNULL((SELECT GROUP_CONCAT(CONCAT(tta.name_type, ' №', ph.product_number)) FROM phones ph, types_TA tta WHERE n.id_number = ph.cod_number AND tta.id = ph.cod_type_TA GROUP BY ph.cod_number),'')  as `абонентская установка`, n.port_number as `Номер порта`, n.permit as `Указание`  FROM numbers n LEFT JOIN phones p  ON n.id_number = p.cod_number LEFT JOIN types_TA t ON t.id = p.cod_type_TA"
+        SQL="SELECT DISTINCT n.id_number as `Код`, n.name_net as `Сеть`, n.number as `Номер`, IFNULL((SELECT GROUP_CONCAT(CONCAT(tta.name_type, ' №', ph.product_number)) FROM phones ph, types_TA tta WHERE n.id_number = ph.cod_number AND tta.id = ph.cod_type_TA GROUP BY ph.cod_number),'')  as `абонентская установка`, n.port_number as `Номер порта`, n.permit as `Указание`  FROM numbers n LEFT JOIN phones p  ON n.id_number = p.cod_number LEFT JOIN types_TA t ON t.id = p.cod_type_TA"
         #SQL="SELECT n.id_number as `Код`, n.name_net as `Сеть`, n.number as `Номер`, IFNULL(p.product_number, '') as `абонентская установка`, IFNULL(t.name_type, '') as `Тип`, n.port_number as `Номер порта`, n.permit as `Указание`  FROM numbers n LEFT JOIN phones p  ON n.id_number = p.cod_number LEFT JOIN types_TA t ON t.id = p.cod_type_TA"
         self.phonesModel.setQuery(SQL)
-        self.mainTable.setModel(self.phonesModel)
+        self.mainTable.setModel(self.proxyPhonesModel)
         self.mainTable.createWidgetsFiltres()
         self.actionUpdate.triggered.connect(self.phonesModel.resetData)
         self.actionSaveData.triggered.connect(self.phonesModel.saveData)
@@ -145,7 +151,7 @@ class MainWindow(QMainWindow):
         #SQL="SELECT r.id_room as `Код`, r.num_room as `№ пом`, r.cod_parent as `Объект`, r.floor as `Этаж` FROM rooms r WHERE r.cod_parent > -1 ORDER BY level"
         SQL="SELECT r.id_room as `Код`, r.num_room as `№ пом.`, r.cod_parent as `Объект`, r.floor as `Этаж`,  COUNT(p.id_phone) as `Количество`, GROUP_CONCAT(n.number) as `Номера` from rooms r LEFT JOIN phones p ON r.id_room = p.cod_room LEFT JOIN numbers n ON p.cod_number=n.id_number WHERE r.cod_parent > 0 GROUP BY(r.num_room)"
         self.roomsModel.setQuery(SQL)
-        self.mainTable.setModel(self.roomsModel)
+        self.mainTable.setModel(self.proxyRoomsModel)
         self.mainTable.createWidgetsFiltres()
         self.actionUpdate.triggered.connect(self.roomsModel.resetData)
         self.actionSaveData.triggered.connect(self.roomsModel.saveData)

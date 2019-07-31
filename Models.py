@@ -257,7 +257,7 @@ class ModelAbonents(QAbstractItemModel):
         
 class SortedProxyModel(QSortFilterProxyModel):
     def __init__(self):
-        print("constructor ProxyModel")
+        #print("constructor ProxyModel")
         self.dict_ordering = {}
         self.dict_filtering = {} # Словарь для фильтрации. Ключ-название поля таблицы, значение-параметр фильтрации 
         super().__init__()
@@ -275,6 +275,15 @@ class SortedProxyModel(QSortFilterProxyModel):
         invalidateFilter()"""
         #print(f"key={self.sender().objectName()}; value={value_filter}")
         self.dict_filtering[int(self.sender().objectName())]=value_filter
+        #print(self.dict_filtering)
+        self.invalidateFilter()
+
+    @pyqtSlot(int)
+    def changeIndexFiltrering(self, value_filter):
+        """Слот вызывается, когда изменяется индекс QComboBox виджета фильтрации.
+        При этом вызывается защищенная функция invalidateFilter()"""
+        #print(f"key={self.sender().objectName()}; value={value_filter}")
+        self.dict_filtering[int(self.sender().objectName())]=value_filter
         print(self.dict_filtering)
         self.invalidateFilter()
 
@@ -282,14 +291,17 @@ class SortedProxyModel(QSortFilterProxyModel):
         if bool(self.dict_filtering):
             for i in range(len(self.sourceModel().namesColumn)):
                 #print(f"filterAcceptRow.column={i}")
-                if bool(self.dict_filtering.get(i)):
+                parametr_filtering = self.dict_filtering.get(i)
+                if bool(parametr_filtering):
                     index = self.sourceModel().index(sourceRow, i, sourceParent)
+                    #print(f"parametr_filtering={parametr_filtering};data={self.sourceModel().data(index)}")
                     #print(f"{self.dict_filtering[i]};{self.sourceModel().data(index)}")
-                    try:
-                        if not (self.dict_filtering[i] in str(self.sourceModel().data(index))):
+                    if isinstance(parametr_filtering, int):
+                        if not (parametr_filtering == self.sourceModel().data(index)):
                             return False
-                    except:
-                        print(f"{self.dict_filtering[i]};{self.sourceModel().data(index)}")
+                    if isinstance(parametr_filtering, str):
+                        if not (parametr_filtering in str(self.sourceModel().data(index))):
+                            return False
         #if O
         return True;
 

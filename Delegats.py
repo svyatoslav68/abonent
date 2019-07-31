@@ -128,9 +128,9 @@ class comboBdDelegate(QAbstractItemDelegate):
     def setModelData(self, editor, model, index):
         data = list(self.content.keys())[editor.currentIndex()]
         #if data:
+        #print(f"from Delegate setModelData data={data}")
         model.setData(index, data, Qt.EditRole)
         #strSQL = "UPDATE {'table'} SET 
-        #print(data)
 
     def updateEditorGeometry(self, editor, option, index):
         editor.setGeometry(option.rect)
