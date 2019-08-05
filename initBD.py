@@ -4,7 +4,7 @@ import sys
 import mysqlconnector
 import argparse
 
-version="0.0.1 alpha"
+version="0.0.2 beta"
 
 def createParser():
     # Создаем класс парсера
@@ -23,6 +23,7 @@ def createParser():
     parent_group.add_argument('--typeta', help='Тип телефонного аппарата')
     parent_group.add_argument('--pid', help='Заводской номера телефонного аппарата')
     parent_group.add_argument('--iid', help='Инвентарный номер телефонного аппарата')
+    parent_group.add_argument('--date', help='Дата ввода в эксплуатацию')
     parent_group.add_argument('--count', '-c', help='Количество одинаковых записей, добавляемых в таблицу')
     parent_group.add_argument('--version', 
             action = 'version',
@@ -38,22 +39,35 @@ def createParser():
     parser_create.add_argument('-e', '--end', required=False, type=int)
     return parser
 
-def init_table_phones(counter, pid, iid, typeTA, connect):
+def init_table_phones(count, con, **dict_pars):
     """Функция заполняет таблицу "phones" однотипными записями"""
     try:
         cursor=connect.cursor()
-        # Опдределяем идентификтор типа телефонного аппарата по названию
-        SQL = "SELECT `id` from `types_TA` WHERE `name_type` = '{}'".format(typeTA)
-        if cursor.execute(SQL) == 1:
-            id_typeTA = list(cursor.fetchone().values())[0]
-            SQL = "INSERT into {0} (`state`, `product_number`, `inv_number`, `cod_type_TA`) VALUES(0,'{{0}}', '{{1}}', '{1}')".format('phones', id_typeTA)
-        else:
-            id_typeTA = 'NULL'
-            SQL = "INSERT into {0} (`state`, `product_number`, `inv_number`) VALUES(0,'{{0}}', '{{1}}')".format('phones')
-        for i in range(int(counter)):
-            resSQL=SQL.format(pid+'*'+str(i), iid+str(i))
-            print(resSQL)
-            cursor.execute(resSQL)
+        # Определяем идентификтор типа телефонного аппарата по названию
+        id_typeTA = 'NULL'
+        if dict_pars.get('cod_type_TA'):
+            SQL = "SELECT `id` from `types_TA` WHERE `name_type` = '{}'".format(dict_pars['cod_type_TA'])
+            if cursor.execute(SQL) == 1:
+                id_typeTA = str(list(cursor.fetchone().values())[0])
+        dict_pars['cod_type_TA'] = id_typeTA
+        dict_pars['state']='0'
+        print(dict_pars)
+        #return
+        SQL = "INSERT into `phones` ({}) VALUES({})".format(', '.join(map(lambda x:"`"+x+"`",tuple(dict_pars.keys()))), ', '.join(map(lambda x:"'"+x+"'",tuple(dict_pars.values()))))
+        if dict_pars.get('inv_number'):
+            number_iid = int(dict_pars['inv_number'][len(dict_pars['inv_number'])-2:])
+        if dict_pars.get('product_number'):
+            number_pid = int(dict_pars['product_number'][len(dict_pars['product_number'])-2:])
+        #number_pid = int(dict_pars['product_number'][len(dict_pars['product_number'])-2:])
+        for i in range(int(count)):
+            #newiid = 
+            if dict_pars.get('inv_number'):
+                dict_pars['inv_number'] = dict_pars['inv_number'][:len(dict_pars['inv_number'])-2]+str(number_iid+i)
+            if dict_pars.get('product_number'):
+                dict_pars['product_number'] = dict_pars['product_number'][:len(dict_pars['product_number'])-2]+str(number_pid+i)
+            SQL = "INSERT into `phones` ({}) VALUES({})".format(', '.join(map(lambda x:"`"+x+"`",tuple(dict_pars.keys()))), ', '.join(map(lambda x:"'"+x+"'",tuple(dict_pars.values()))))
+            print(f"SQL={SQL}")
+            cursor.execute(SQL)
         connect.commit()
     finally:
         connect.close()
@@ -142,7 +156,16 @@ if __name__== '__main__':
             connect=mysqlconnector.getConnection()
         elif namespace.bd == 'sqlite3':
             connect=mysqlconnector.getConnectionLite()
-        init_table_phones(namespace.count, namespace.pid, namespace.iid, namespace.typeta, connect)
+        dict_parametrs = {} # Словарь в котором содержатся данные полученные из ключей командной строки
+        if namespace.pid:
+            dict_parametrs['product_number']=namespace.pid
+        if namespace.iid:
+            dict_parametrs['inv_number']=namespace.iid
+        if namespace.typeta:
+            dict_parametrs['cod_type_TA']=namespace.typeta
+        if namespace.date:
+            dict_parametrs['date_issue']=namespace.date
+        init_table_phones(count = namespace.count, con = connect, **dict_parametrs)
     if namespace.command == 'delete' and namespace.table == 'numbers':
         if namespace.bd == 'mysql':
             connect=mysqlconnector.getConnection()

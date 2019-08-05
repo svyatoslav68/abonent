@@ -150,7 +150,7 @@ class TableWithFiltres(QWidget):
         elif isinstance(self.model(), QSortFilterProxyModel):
             innerModel = self.model().sourceModel()
         #count = 0
-        for i in innerModel.savedFields:
+        for i in range(len(innerModel.namesColumn)):
             label = QLabel(innerModel.namesColumn[i])
             delegateForColumn = self.table.itemDelegateForColumn(i)
             if isinstance(delegateForColumn, defaultDelegate): # Для делегата по умолчанию выбирается QLineEdit
