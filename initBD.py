@@ -23,7 +23,8 @@ def createParser():
     parent_group.add_argument('--typeta', help='Тип телефонного аппарата')
     parent_group.add_argument('--pid', help='Заводской номера телефонного аппарата')
     parent_group.add_argument('--iid', help='Инвентарный номер телефонного аппарата')
-    parent_group.add_argument('--date', help='Дата ввода в эксплуатацию')
+    parent_group.add_argument('--datework', help='Дата ввода в эксплуатацию') 
+    parent_group.add_argument('--date', help='Дата выпуска')
     parent_group.add_argument('--count', '-c', help='Количество одинаковых записей, добавляемых в таблицу')
     parent_group.add_argument('--version', 
             action = 'version',
@@ -58,13 +59,14 @@ def init_table_phones(count, con, **dict_pars):
             number_iid = int(dict_pars['inv_number'][len(dict_pars['inv_number'])-2:])
         if dict_pars.get('product_number'):
             number_pid = int(dict_pars['product_number'][len(dict_pars['product_number'])-2:])
+        print(f"number_pid = {number_pid}, number_iid = {number_iid}")
         #number_pid = int(dict_pars['product_number'][len(dict_pars['product_number'])-2:])
         for i in range(int(count)):
             #newiid = 
             if dict_pars.get('inv_number'):
-                dict_pars['inv_number'] = dict_pars['inv_number'][:len(dict_pars['inv_number'])-2]+str(number_iid+i)
+                dict_pars['inv_number'] = dict_pars['inv_number'][:len(dict_pars['inv_number'])-2]+"{0:02}".format(number_iid+i)
             if dict_pars.get('product_number'):
-                dict_pars['product_number'] = dict_pars['product_number'][:len(dict_pars['product_number'])-2]+str(number_pid+i)
+                dict_pars['product_number'] = dict_pars['product_number'][:len(dict_pars['product_number'])-2]+"{0:02}".format(number_pid+i)
             SQL = "INSERT into `phones` ({}) VALUES({})".format(', '.join(map(lambda x:"`"+x+"`",tuple(dict_pars.keys()))), ', '.join(map(lambda x:"'"+x+"'",tuple(dict_pars.values()))))
             print(f"SQL={SQL}")
             cursor.execute(SQL)
@@ -165,6 +167,8 @@ if __name__== '__main__':
             dict_parametrs['cod_type_TA']=namespace.typeta
         if namespace.date:
             dict_parametrs['date_issue']=namespace.date
+        if namespace.datework:
+            dict_parametrs['date_work']=namespace.datework
         init_table_phones(count = namespace.count, con = connect, **dict_parametrs)
     if namespace.command == 'delete' and namespace.table == 'numbers':
         if namespace.bd == 'mysql':

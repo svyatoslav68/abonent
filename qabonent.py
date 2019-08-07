@@ -119,7 +119,7 @@ class MainWindow(QMainWindow):
     def showNumbers(self):
         """Функция выводит информацию о номерах в главном окне приложения.
         Для QTableView устанавливаются делегаты по умолчанию"""
-        SQL="SELECT DISTINCT n.id_number as `Код`, n.name_net as `Сеть`, n.number as `Номер`, IFNULL((SELECT GROUP_CONCAT(CONCAT(tta.name_type, ' №', ph.product_number)) FROM phones ph, types_TA tta WHERE n.id_number = ph.cod_number AND tta.id = ph.cod_type_TA GROUP BY ph.cod_number),'')  as `абонентская установка`, n.port_number as `Номер порта`, n.permit as `Указание`  FROM numbers n LEFT JOIN phones p  ON n.id_number = p.cod_number LEFT JOIN types_TA t ON t.id = p.cod_type_TA"
+        SQL="SELECT DISTINCT n.id_number as `Код`, n.name_net as `Сеть`, n.number as `Номер`, n.cod_status as `Состояние`, IFNULL((SELECT GROUP_CONCAT(CONCAT(tta.name_type, ' №', ph.product_number)) FROM phones ph, types_TA tta WHERE n.id_number = ph.cod_number AND tta.id = ph.cod_type_TA GROUP BY ph.cod_number),'')  as `абонентская установка`, n.port_number as `Номер порта`, n.permit as `Указание`  FROM numbers n LEFT JOIN phones p  ON n.id_number = p.cod_number LEFT JOIN types_TA t ON t.id = p.cod_type_TA"
         #SQL="SELECT n.id_number as `Код`, n.name_net as `Сеть`, n.number as `Номер`, IFNULL(p.product_number, '') as `абонентская установка`, IFNULL(t.name_type, '') as `Тип`, n.port_number as `Номер порта`, n.permit as `Указание`  FROM numbers n LEFT JOIN phones p  ON n.id_number = p.cod_number LEFT JOIN types_TA t ON t.id = p.cod_type_TA"
         self.phonesModel.setQuery(SQL)
         self.mainTable.setModel(self.proxyPhonesModel)
@@ -128,9 +128,11 @@ class MainWindow(QMainWindow):
         self.actionSaveData.triggered.connect(self.phonesModel.saveData)
         self.actionDeleteRecords.triggered.connect(lambda:self.phonesModel.deleteRows(self.mainTable.selectedIndexes()))
         self.actionViewFilterTab.triggered.emit(self.actionViewFilterTab.isChecked())
+        self.slotDataChanged()
+        self.proxyPhonesModel.endFiltering.connect(self.slotDataChanged)
 
     def showAbonents(self):
-        SQL="SELECT p.id_phone as `Код`, p.product_number as 'Зав. №', p.inv_number as 'Инв. №', p.cod_type_TA as 'Код типа', p.date_issue as 'Дата выпуска', p.state as 'Состояние', IFNULL(p.cod_number, 'None') as 'Код номера', n.name_net as 'Сеть', n.number as 'Номер', p.cod_room as 'Помещение' from phones p LEFT JOIN types_TA t ON p.cod_type_TA = t.id LEFT JOIN numbers n ON p.cod_number = n.id_number LEFT JOIN rooms r ON p.cod_room = r.id_room ORDER BY p.cod_type_TA"
+        SQL="SELECT p.id_phone as `Код`, p.product_number as 'Зав. №', p.inv_number as 'Инв. №', p.cod_type_TA as 'Код типа', p.date_issue as 'Дата выпуска', p.date_work as 'Дата ввода в экспл.', p.state as 'Состояние', IFNULL(p.cod_number, 'None') as 'Код номера', p.cod_room as 'Помещение' from phones p LEFT JOIN types_TA t ON p.cod_type_TA = t.id LEFT JOIN numbers n ON p.cod_number = n.id_number LEFT JOIN rooms r ON p.cod_room = r.id_room ORDER BY p.cod_type_TA"
         self.abonentModel.setQuery(SQL)
         #self.mainTable.setModel(self.abonentModel)
         self.mainTable.setModel(self.proxyAbonentModel)
@@ -145,11 +147,13 @@ class MainWindow(QMainWindow):
         #self.mainTable.setItemDelegateForColumn(6, tabDelegate)
         self.actionDeleteRecords.triggered.connect(lambda:self.abonentModel.deleteRows(self.mainTable.selectedIndexes()))
         self.actionViewFilterTab.triggered.emit(self.actionViewFilterTab.isChecked())
+        self.slotDataChanged()
+        self.proxyAbonentModel.endFiltering.connect(self.slotDataChanged)
 
     def showRooms(self):
         #SQL="SELECT r.id_room as `Код`, r.num_room as `№ пом`, r.cod_parent as parent, (SELECT address FROM rooms WHERE id_room = parent) as `Объект`, r.floor as `Этаж` FROM rooms r WHERE r.cod_parent > -1 ORDER BY level"
         #SQL="SELECT r.id_room as `Код`, r.num_room as `№ пом`, r.cod_parent as `Объект`, r.floor as `Этаж` FROM rooms r WHERE r.cod_parent > -1 ORDER BY level"
-        SQL="SELECT r.id_room as `Код`, r.num_room as `№ пом.`, r.cod_parent as `Объект`, r.floor as `Этаж`,  COUNT(p.id_phone) as `Количество`, GROUP_CONCAT(n.number) as `Номера` from rooms r LEFT JOIN phones p ON r.id_room = p.cod_room LEFT JOIN numbers n ON p.cod_number=n.id_number WHERE r.cod_parent > 0 GROUP BY(r.num_room)"
+        SQL="SELECT r.id_room as `Код`, r.num_room as `№ пом.`, r.cod_parent as `Объект`, r.floor as `Этаж`, r.level as `Уровень`, COUNT(p.id_phone) as `Количество`, GROUP_CONCAT(CONCAT(n.name_net,':',n.number) SEPARATOR ', ') as `Номера` from rooms r LEFT JOIN phones p ON r.id_room = p.cod_room LEFT JOIN numbers n ON p.cod_number=n.id_number WHERE r.cod_parent > 0 GROUP BY(r.num_room)"
         self.roomsModel.setQuery(SQL)
         self.mainTable.setModel(self.proxyRoomsModel)
         self.mainTable.createWidgetsFiltres()
@@ -157,6 +161,8 @@ class MainWindow(QMainWindow):
         self.actionSaveData.triggered.connect(self.roomsModel.saveData)
         self.actionDeleteRecords.triggered.connect(lambda:self.roomsModel.deleteRows(self.mainTable.selectedIndexes()))
         self.actionViewFilterTab.triggered.emit(self.actionViewFilterTab.isChecked())
+        self.slotDataChanged()
+        self.proxyRoomsModel.endFiltering.connect(self.slotDataChanged)
 
     @pyqtSlot()
     def helpSlot(self):
@@ -165,6 +171,11 @@ class MainWindow(QMainWindow):
     @pyqtSlot()
     def helpQt(self):
         QMessageBox.aboutQt(self, "О библиотеке Qt")
+
+    @pyqtSlot()
+    def slotDataChanged(self):
+        print(f"Number rows = {self.mainTable.model().rowCount(QModelIndex())}")
+        self.statusBar().showMessage(f"Количество записей: {self.mainTable.model().rowCount(QModelIndex())}")
 
     @pyqtSlot()
     def selectNumber(self):
@@ -179,8 +190,8 @@ class MainWindow(QMainWindow):
     def addRecord(self):
         if self.mainTable.model():
             if self.mainTable.currentIndex().row() > 0:
-                #print(self.mainTable.currentIndex().row())
-                self.mainTable.model().insertRows(self.mainTable.currentIndex().row(),1,QModelIndex())
+                self.mainTable.model().sourceModel().insertRows(self.mainTable.currentIndex().row(),1,QModelIndex())
+                #print(f"addRecord. Row = {self.mainTable.currentIndex().row()}")
 
     @pyqtSlot()
     def deleteRecord(self):
@@ -214,7 +225,7 @@ class MainWindow(QMainWindow):
             #print(nameSection)
             for i in range(len(innerModel.namesColumn)):
                 #print("i-й столбец; ширина = {}".format(self.mainTable.columnWidth(i)))
-                settings.setValue(str(i), format(self.mainTable.columnWidth(i)))
+                settings.setValue(str(i), format(self.mainTable.table.columnWidth(i)))
             settings.endGroup()
 
 if __name__ == '__main__':

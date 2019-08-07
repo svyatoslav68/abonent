@@ -44,7 +44,10 @@ class PhonesTableView(QTableView):
         if nameMainTable in ("numbers"):#, "rooms"):
             for numColumn in range(innerModel.columnCount(QModelIndex())):
                 #print(f"from setModel(); name_table={nameMainTable}")
-                dictDelegats[numColumn] = defaultDelegate(self.parent())
+                if numColumn == 3:
+                    dictDelegats[numColumn] = comboBdDelegate(self.parent(),'number_status', 'name_status')
+                else:
+                    dictDelegats[numColumn] = defaultDelegate(self.parent())
                 self.setItemDelegateForColumn(numColumn, dictDelegats[numColumn])            
                 #print(f"numColumn = {numColumn}")
         if nameMainTable == "rooms":
@@ -63,15 +66,15 @@ class PhonesTableView(QTableView):
                 if numColumn == 3:
                     dictDelegats[numColumn] = comboBdDelegate(self.parent(),'types_TA', 'name_type')
                     #self.setItemDelegateForColumn(numColumn, dictDelegats[numColumn])
-                elif numColumn == 5:
+                elif numColumn == 6:
                     dictDelegats[numColumn] = comboBdDelegate(self.parent(),'phone_status', 'name_status')
                     #self.setItemDelegateForColumn(numColumn, dictDelegats[numColumn])
-                elif numColumn == 6:
+                elif numColumn == 7:
                     dictDelegats[numColumn] = functionViewTableEditDelegate(self.parent(), 'numbers', lambda row:row['name_net']+'   '+row['number'])
                     dictDelegats[numColumn].listFilters.append(dict(name_field='name_net', alias="Сеть", widget='QComboBox', condition = 'eq', SqlFill = "SELECT DISTINCT name_net FROM numbers") )
                     dictDelegats[numColumn].listFilters.append(dict(name_field='number', alias="Номер", widget='QLineEdit', condition = 'like', SqlFill = "")) 
                     #self.setItemDelegateForColumn(numColumn, dictDelegats[numColumn])
-                elif numColumn == 9:
+                elif numColumn == 8:
                     dictDelegats[numColumn] = functionViewQueryEditDelegate(self.parent(), 'SELECT r.id_room as `Код`, r.floor as `Этаж`, r.num_room as `№ пом.`, p_r.address as `Адрес` FROM rooms r INNER JOIN rooms p_r ON r.cod_parent = p_r.id_room', lambda row: "{}, пом. {}".format(list(row.values())[3],list(row.values())[2]))
                 else:
                     dictDelegats[numColumn] = defaultDelegate(self.parent())
@@ -169,16 +172,11 @@ class TableWithFiltres(QWidget):
             else:
                 continue
             itemFilter.setObjectName(str(i))#innerModel.savedFields[i])
-            #print(f"i={i}, type={type(itemFilter)}, name={itemFilter.objectName()}, id={id(itemFilter)}")
             fieldlayout = QHBoxLayout()
             fieldlayout.addWidget(label,1)
-            #fieldlayout.addStretch()
             fieldlayout.addWidget(itemFilter,2)
             self.filterlayout.addLayout(fieldlayout)
-            #self.filterlayout.addWidget(label)
-            #count += 1
         self.filterlayout.addStretch()
-        #if len(self.model().savedFields) > 0:
         self.hideFilterPanel(False)
 
 

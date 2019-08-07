@@ -1,7 +1,7 @@
 # -*- coding: utf8 -*-
 # Модели данных. Модели создаются с помощью SQL-запросов к БД
 # Здесь же описываются делегаты, используемые в приложении
-from PyQt5.QtCore import pyqtSlot
+from PyQt5.QtCore import pyqtSlot, pyqtSignal
 from PyQt5.QtCore import QAbstractItemModel, Qt, QVariant, QModelIndex, QSortFilterProxyModel
 from mysqlconnector import getAdminConnection, getConnection
 from pymysql import IntegrityError
@@ -164,8 +164,7 @@ class ModelAbonents(QAbstractItemModel):
                 # Кроме запомининая данных в поле content, мы добавляем номер модифицированной строки в 
                 # список модифицированных строк, чтобы потом обновить соответствующие записи в БД
                 modifyIndex = index.row()#self.content[index.row()][0] # Идентификатор редактируемой записи
-                if not(modifyIndex in self.modifiedIndexes):
-                    self.modifiedIndexes.append(modifyIndex)
+                self.addModifyIndex(modifyIndex)
                 # Посылаем сигнал, по которому обновится редактируемое поле в представлении
                 self.dataChanged.emit(index, index)
                 return True
@@ -180,7 +179,12 @@ class ModelAbonents(QAbstractItemModel):
             for j in range(len(self.namesColumn) - 1):
                 new_row.append('None')
             self.content.insert(row, new_row)
+            self.addModifyIndex(row)
         super().endInsertRows()
+
+    def addModifyIndex(self, index):
+        if not(index in self.modifiedIndexes):
+            self.modifiedIndexes.append(index)
 
     @pyqtSlot(list)
     def deleteRows(self, listSelect):
@@ -211,11 +215,14 @@ class ModelAbonents(QAbstractItemModel):
         insertSQL = "INSERT {} SET {}"
         connect=getConnection()
         try:
+            print(f"Сохраняемые строки:{self.modifiedIndexes}")
             for record in self.modifiedIndexes:
                 list_for_str = []
                 name_main_table = self.getNameMainTable()
                 for i in self.savedFields:#(self.fillSavedFields(name_main_table)[1:]):
                     value = self.content[record][i]#[0]]
+                    if (i == 0) and (not value):
+                        continue
                     if (value == None) or (value == 'None'):
                         #print(f"from saveData - {i}; value = {value}")
                         # Если подчиенная запись не выбрана, то соответствующее поле заполняем значением NULL
@@ -256,6 +263,7 @@ class ModelAbonents(QAbstractItemModel):
         print(f"From sort(), column = {column}, order = {order}")
         
 class SortedProxyModel(QSortFilterProxyModel):
+    endFiltering = pyqtSignal()
     def __init__(self):
         #print("constructor ProxyModel")
         self.dict_ordering = {}
@@ -277,6 +285,8 @@ class SortedProxyModel(QSortFilterProxyModel):
         self.dict_filtering[int(self.sender().objectName())]=value_filter
         #print(self.dict_filtering)
         self.invalidateFilter()
+        self.endFiltering.emit()
+        #print(f"Number rows = {self.rowCount(QModelIndex())}")
 
     @pyqtSlot(int)
     def changeIndexFiltrering(self, value_filter):
@@ -284,8 +294,10 @@ class SortedProxyModel(QSortFilterProxyModel):
         При этом вызывается защищенная функция invalidateFilter()"""
         #print(f"key={self.sender().objectName()}; value={value_filter}")
         self.dict_filtering[int(self.sender().objectName())]=value_filter
-        print(self.dict_filtering)
+        #print(self.dict_filtering)
         self.invalidateFilter()
+        self.endFiltering.emit()
+        #print(f"Number rows = {self.rowCount(QModelIndex())}")
 
     def filterAcceptsRow(self, sourceRow, sourceParent):
         if bool(self.dict_filtering):
