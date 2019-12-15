@@ -31,6 +31,10 @@ class MainWindow(QMainWindow):
         self.proxyRoomsModel = SortedProxyModel()
         self.proxyRoomsModel.setObjectName("proxyRoomsModel")
         self.proxyRoomsModel.setSourceModel(self.roomsModel)
+        self.listModels = []
+        #self.listModels.append(self.phonesModel)
+        #self.listModels.append(self.abonentModel)
+        self.listModels.extend([self.abonentModel, self.phonesModel, self.roomsModel])
         self.initUI()
 
     def createActions(self):
@@ -65,6 +69,7 @@ class MainWindow(QMainWindow):
         #self.actionDeleteRecords.triggered.connect(self.deleteRecord)
         self.actionSaveData=QAction("Сохранить")
         self.actionSaveData.setShortcut("Ctrl+S")
+        self.actionSaveData.triggered.connect(self.saveAllData)
         self.actionLoadData=QAction("Загрузить")
         self.actionLoadData.setShortcut("Ctrl+L")
         self.actionHelpAbout=QAction("О программе")
@@ -99,7 +104,7 @@ class MainWindow(QMainWindow):
         helpMenu.addAction(self.actionHelpAbout)
         helpMenu.addAction(self.actionHelpAboutQt)
         #appMenu.addMenu(helpMenu)
-        
+
     def createWidgets(self):
         #self.mainTable = PhonesTableView()
         self.mainTable = TableWithFiltres()
@@ -121,11 +126,12 @@ class MainWindow(QMainWindow):
         Для QTableView устанавливаются делегаты по умолчанию"""
         SQL="SELECT DISTINCT n.id_number as `Код`, n.name_net as `Сеть`, n.number as `Номер`, n.cod_status as `Состояние`, IFNULL((SELECT GROUP_CONCAT(CONCAT(tta.name_type, ' №', ph.product_number)) FROM phones ph, types_TA tta WHERE n.id_number = ph.cod_number AND tta.id = ph.cod_type_TA GROUP BY ph.cod_number),'')  as `абонентская установка`, n.port_number as `Номер порта`, n.permit as `Указание`  FROM numbers n LEFT JOIN phones p  ON n.id_number = p.cod_number LEFT JOIN types_TA t ON t.id = p.cod_type_TA"
         #SQL="SELECT n.id_number as `Код`, n.name_net as `Сеть`, n.number as `Номер`, IFNULL(p.product_number, '') as `абонентская установка`, IFNULL(t.name_type, '') as `Тип`, n.port_number as `Номер порта`, n.permit as `Указание`  FROM numbers n LEFT JOIN phones p  ON n.id_number = p.cod_number LEFT JOIN types_TA t ON t.id = p.cod_type_TA"
+        self.saveAllData()
         self.phonesModel.setQuery(SQL)
         self.mainTable.setModel(self.proxyPhonesModel)
         self.mainTable.createWidgetsFiltres()
         self.actionUpdate.triggered.connect(self.phonesModel.resetData)
-        self.actionSaveData.triggered.connect(self.phonesModel.saveData)
+        #self.actionSaveData.triggered.connect(self.phonesModel.saveData)
         self.actionDeleteRecords.triggered.connect(lambda:self.phonesModel.deleteRows(self.mainTable.selectedIndexes()))
         self.actionViewFilterTab.triggered.emit(self.actionViewFilterTab.isChecked())
         self.slotDataChanged()
@@ -133,6 +139,7 @@ class MainWindow(QMainWindow):
 
     def showAbonents(self):
         SQL="SELECT p.id_phone as `Код`, p.product_number as 'Зав. №', p.inv_number as 'Инв. №', p.cod_type_TA as 'Код типа', p.date_issue as 'Дата выпуска', p.date_work as 'Дата ввода в экспл.', p.state as 'Состояние', IFNULL(p.cod_number, 'None') as 'Код номера', p.cod_room as 'Помещение' from phones p LEFT JOIN types_TA t ON p.cod_type_TA = t.id LEFT JOIN numbers n ON p.cod_number = n.id_number LEFT JOIN rooms r ON p.cod_room = r.id_room ORDER BY p.cod_type_TA"
+        self.saveAllData()
         self.abonentModel.setQuery(SQL)
         #self.mainTable.setModel(self.abonentModel)
         self.mainTable.setModel(self.proxyAbonentModel)
@@ -142,7 +149,7 @@ class MainWindow(QMainWindow):
         #self.mainTable.setItemDelegateForColumn(3, typeDelegate)
         #stateDelegate = comboBdDelegate(self,'phone_status', 'name_status')
         #self.mainTable.setItemDelegateForColumn(5, stateDelegate)
-        self.actionSaveData.triggered.connect(self.abonentModel.saveData)
+        #self.actionSaveData.triggered.connect(self.abonentModel.saveData)
         #tabDelegate = functionViewTableEditDelegate(self, 'numbers', lambda row:row['name_net']+':'+row['number'])
         #self.mainTable.setItemDelegateForColumn(6, tabDelegate)
         self.actionDeleteRecords.triggered.connect(lambda:self.abonentModel.deleteRows(self.mainTable.selectedIndexes()))
@@ -154,15 +161,23 @@ class MainWindow(QMainWindow):
         #SQL="SELECT r.id_room as `Код`, r.num_room as `№ пом`, r.cod_parent as parent, (SELECT address FROM rooms WHERE id_room = parent) as `Объект`, r.floor as `Этаж` FROM rooms r WHERE r.cod_parent > -1 ORDER BY level"
         #SQL="SELECT r.id_room as `Код`, r.num_room as `№ пом`, r.cod_parent as `Объект`, r.floor as `Этаж` FROM rooms r WHERE r.cod_parent > -1 ORDER BY level"
         SQL="SELECT r.id_room as `Код`, r.num_room as `№ пом.`, r.cod_parent as `Объект`, r.floor as `Этаж`, r.level as `Уровень`, COUNT(p.id_phone) as `Количество`, GROUP_CONCAT(CONCAT(n.name_net,':',n.number) SEPARATOR ', ') as `Номера` from rooms r LEFT JOIN phones p ON r.id_room = p.cod_room LEFT JOIN numbers n ON p.cod_number=n.id_number WHERE r.cod_parent > 0 GROUP BY(r.num_room)"
+        self.saveAllData()
         self.roomsModel.setQuery(SQL)
         self.mainTable.setModel(self.proxyRoomsModel)
         self.mainTable.createWidgetsFiltres()
         self.actionUpdate.triggered.connect(self.roomsModel.resetData)
-        self.actionSaveData.triggered.connect(self.roomsModel.saveData)
+        #self.actionSaveData.triggered.connect(self.roomsModel.saveData)
         self.actionDeleteRecords.triggered.connect(lambda:self.roomsModel.deleteRows(self.mainTable.selectedIndexes()))
         self.actionViewFilterTab.triggered.emit(self.actionViewFilterTab.isChecked())
         self.slotDataChanged()
         self.proxyRoomsModel.endFiltering.connect(self.slotDataChanged)
+
+    @pyqtSlot()
+    def saveAllData(self):
+        """Сохранения данных во всех моделях приложения."""
+        for model in self.listModels:
+            model.saveData()
+
 
     @pyqtSlot()
     def helpSlot(self):
@@ -231,12 +246,10 @@ class MainWindow(QMainWindow):
 if __name__ == '__main__':
     #app = QApplication(sys.argv)
     app = QApplication(argv)
-
     w = MainWindow()
     #w.move(0,0)
     #w.resize(desktop.width(), desktop.height())
     w.show()
-
     #sys.exit(app.exec_())
     exit(app.exec_())
 

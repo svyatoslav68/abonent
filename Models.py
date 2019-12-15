@@ -60,7 +60,7 @@ class ModelAbonents(QAbstractItemModel):
             #print(self.content)
             row=cursor.fetchone()
         super().endResetModel()
-            
+
     def getNameMainTable(self):
         """Метод анализирует строку запроса и определяет главную таблицу, название которое возвращается.
         Если поле `query` не заполнено возвращается пустая строка. Главная таблица определяется по имени
@@ -183,6 +183,8 @@ class ModelAbonents(QAbstractItemModel):
         super().endInsertRows()
 
     def addModifyIndex(self, index):
+        """В список модифицированных элементов списка добавляется строка, индекс которой передается
+        в качестве параметра метода. Перед добавлением проверяется наличие добавляемой строки в списке."""
         if not(index in self.modifiedIndexes):
             self.modifiedIndexes.append(index)
 
@@ -190,17 +192,22 @@ class ModelAbonents(QAbstractItemModel):
     def deleteRows(self, listSelect):
         """Слот удаляет выделенные записи. В качестве параметра получает список выделенных строк таблицы."""
         setDelete = set() # Множество удаляемых записей
+        print(f"Количество удаляемых записей = {len(listSelect)}")
         for i in listSelect:
-            #print(f"Выбрранный ряд:{i.row()}")
+            print(f"Выбранный ряд:{i.row()}")
+            print(self.content[i.row()])
             setDelete.add(str(self.content[i.row()][0]))
         #print(setDelete)
         if setDelete:
             deleteSQL = "DELETE FROM {} WHERE {} in ({})".format(self.getNameMainTable()[0], self.getFieldPrimaryKey(), ','.join(setDelete))
-            print(deleteSQL)
+            #print(deleteSQL)
             connect=getConnection()
             try:
                 cursor=connect.cursor()
-                cursor.execute(deleteSQL)
+                try:
+                    cursor.execute(deleteSQL)
+                except IntegrityError as e:
+                    print(e.args) 
                 connect.commit()
             finally:
                 connect.close()
@@ -210,6 +217,9 @@ class ModelAbonents(QAbstractItemModel):
     def saveData(self):
         """Метод сохраняет содержимое модели в таблицу базы данных.
         для этого используется SQL-оператор, определяемый в переменной updateSQL """
+        if not self.savedFields:
+            print("Нечего сохранять")
+            return
         #print("modifiedIndexes={}".format(self.modifiedIndexes))
         updateSQL = "UPDATE {} SET {} WHERE {}"
         insertSQL = "INSERT {} SET {}"
@@ -259,11 +269,13 @@ class ModelAbonents(QAbstractItemModel):
             connect.close()
         self.modifiedIndexes.clear()
 
-    def sort(self, column, order):
-        print(f"From sort(), column = {column}, order = {order}")
         
 class SortedProxyModel(QSortFilterProxyModel):
-    endFiltering = pyqtSignal()
+    """Модель посредник предназначается для сортировки и фильтрации даных модели-источника.
+    В модели создается словарь содержащих направление сортировки для каждой колонки, по которой 
+    проводилась сортировка. В другом словаре содержатся поля, по которым производится фильтрация,
+    в качестве значения сохраняется параметр фильтрации."""
+    endFiltering = pyqtSignal() #сигнал вызывается моделью после окончания фильтрации данных модели-источника
     def __init__(self):
         #print("constructor ProxyModel")
         self.dict_ordering = {}

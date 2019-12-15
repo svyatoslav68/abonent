@@ -134,6 +134,9 @@ class TableWithFiltres(QWidget):
     def currentIndex(self):
         return self.table.currentIndex()
 
+    def selectedIndexes(self):
+        return self.table.selectedIndexes()
+
     def createWidgetsFiltres(self):
         """Создание виджета панели фильтрации. Тип виджета для фильтрации по значению 
         поля определяется из анализа типа делегата установленного для соответсвующего

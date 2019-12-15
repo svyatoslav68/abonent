@@ -35,9 +35,9 @@ def createParser():
     parser_create = command_subparser.add_parser('create', help="Создание блока записей")
     parser_create.add_argument('-b', '--begin', required=False, type=int)
     parser_create.add_argument('-e', '--end', required=False, type=int)
-    parser_create = command_subparser.add_parser('delete', help="Удаление блока записей")
-    parser_create.add_argument('-b', '--begin', required=False, type=int)
-    parser_create.add_argument('-e', '--end', required=False, type=int)
+    parser_delete = command_subparser.add_parser('delete', help="Удаление блока записей")
+    parser_delete.add_argument('-b', '--begin', required=False, type=int)
+    parser_delete.add_argument('-e', '--end', required=False, type=int)
     return parser
 
 def init_table_phones(count, con, **dict_pars):
